@@ -1,5 +1,6 @@
 from typing import Tuple, Any, Dict, List, Optional
 from ..core.config import settings
+import datetime as _dt
 
 try:
     from supabase import create_client, Client  # type: ignore
@@ -64,22 +65,40 @@ class SupabaseService:
         resp = self._client.table("sensors").select("*").eq("id", sensor_id).single().execute()
         return getattr(resp, "data", None)
 
-    def get_latest_baseline(self, machine_id: str | None) -> Optional[Dict[str, Any]]:
+    def create_machine(self, name: str, type_: str, location: str | None = None) -> str:
         if self._client is None:
             raise RuntimeError("Supabase client is not configured")
-        if not machine_id:
-            return None
-        resp = (
-            self._client
-            .table("baseline_signatures")
-            .select("*")
-            .eq("machine_id", machine_id)
-            .order("created_at", desc=True)
-            .limit(1)
-            .execute()
-        )
-        data = getattr(resp, "data", None) or []
-        return data[0] if data else None
+        payload = {"name": name, "type": type_, "location": location}
+        resp = self._client.table("machines").insert(payload).execute()
+        data = getattr(resp, "data", None)
+        if not data:
+            raise RuntimeError("failed to insert machine")
+        return data[0]["id"]
+
+    def create_sensor(self, machine_id: str, position: str, axis: str, sampling_rate: float) -> str:
+        if self._client is None:
+            raise RuntimeError("Supabase client is not configured")
+        payload = {
+            "machine_id": machine_id,
+            "position": position,
+            "axis": axis,
+            "sampling_rate": sampling_rate,
+        }
+        resp = self._client.table("sensors").insert(payload).execute()
+        data = getattr(resp, "data", None)
+        if not data:
+            raise RuntimeError("failed to insert sensor")
+        return data[0]["id"]
+
+    def upsert_baseline(self, machine_id: str, feature_vector: Dict[str, Any]) -> str:
+        if self._client is None:
+            raise RuntimeError("Supabase client is not configured")
+        payload = {"machine_id": machine_id, "feature_vector": feature_vector}
+        resp = self._client.table("baseline_signatures").insert(payload).execute()
+        data = getattr(resp, "data", None)
+        if not data:
+            raise RuntimeError("failed to insert baseline")
+        return data[0]["id"]
 
     def insert_diagnosis(self, record_id: str, findings: List[Dict[str, Any]], health_score: int) -> str:
         if self._client is None:
@@ -116,12 +135,27 @@ class SupabaseService:
         if self._client is None:
             raise RuntimeError("Supabase client is not configured")
         bucket = settings.supabase_bucket
-        # Expect storage_path like "folder/filename.csv" without bucket prefix
         res = self._client.storage.from_(bucket).download(storage_path)
         if isinstance(res, bytes):
             return res
-        # supabase-py may return dict-like with data
         data = getattr(res, "data", None)
         if isinstance(data, bytes):
             return data
         raise RuntimeError("Failed to download storage file")
+
+    def upload_storage_file(self, storage_path: str, content: bytes, content_type: str = "text/csv") -> None:
+        if self._client is None:
+            raise RuntimeError("Supabase client is not configured")
+        bucket = settings.supabase_bucket
+        try:
+            self._client.storage.from_(bucket).remove([storage_path])
+        except Exception:
+            pass
+        res = self._client.storage.from_(bucket).upload(
+            storage_path,
+            content,
+            {"contentType": content_type, "upsert": True},
+        )
+        # supabase-py raises on error; if returns dict, optionally verify 'error' key
+        if isinstance(res, dict) and res.get("error"):
+            raise RuntimeError(f"Upload failed: {res['error']}")
