@@ -11,5 +11,5 @@ def diagnose_record(record_id: str):
         service = VibrationAnalysisService()
         result = service.process_record(record_id)
         return result
-    except NotImplementedError:
-        raise HTTPException(status_code=501, detail="Diagnosis not implemented yet")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
