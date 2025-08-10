@@ -18,4 +18,10 @@ def create_signed_url(payload: SignedUrlRequest):
         url, path = service.create_signed_upload_url(payload.fileName, payload.contentType)
         return {"signedUrl": url, "filePath": path}
     except NotImplementedError:
-        raise HTTPException(status_code=501, detail="Signed URL generation not implemented yet")
+        raise HTTPException(
+            status_code=501,
+            detail=(
+                "Signed URL generation via Python client is not implemented yet. "
+                "Use client-side Supabase JS upload or provide a pre-signed URL via Edge Function."
+            ),
+        )
