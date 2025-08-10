@@ -38,3 +38,18 @@ class SupabaseService:
         if getattr(resp, "data", None):
             return resp.data[0]
         raise RuntimeError("Failed to insert vibration record into Supabase")
+
+    def create_vibration_record_from_dict(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        if self._client is None:
+            raise RuntimeError("Supabase client is not configured. Set SUPABASE_URL and SUPABASE_SERVICE_KEY")
+        to_insert = {
+            "sensor_id": payload["sensor_id"],
+            "file_path": payload["file_path"],
+            "timestamp": payload["timestamp"].isoformat() if hasattr(payload["timestamp"], "isoformat") else payload["timestamp"],
+            "status": payload.get("status", "unprocessed"),
+            "uploaded_by": payload.get("uploaded_by"),
+        }
+        resp = self._client.table("vibration_records").insert(to_insert).execute()
+        if getattr(resp, "data", None):
+            return resp.data[0]
+        raise RuntimeError("Failed to insert vibration record into Supabase")
