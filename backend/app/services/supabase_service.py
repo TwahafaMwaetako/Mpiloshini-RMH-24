@@ -159,3 +159,23 @@ class SupabaseService:
         # supabase-py raises on error; if returns dict, optionally verify 'error' key
         if isinstance(res, dict) and res.get("error"):
             raise RuntimeError(f"Upload failed: {res['error']}")
+
+    def list_buckets(self) -> List[str]:
+        if self._client is None:
+            raise RuntimeError("Supabase client is not configured")
+        buckets = self._client.storage.list_buckets() or []
+        names: List[str] = []
+        for b in buckets:
+            if hasattr(b, "name"):
+                names.append(getattr(b, "name"))
+            elif isinstance(b, dict) and "name" in b:
+                names.append(b["name"])
+        return names
+
+    def ensure_bucket(self, bucket_name: str) -> None:
+        if self._client is None:
+            raise RuntimeError("Supabase client is not configured")
+        names = self.list_buckets()
+        if bucket_name not in names:
+            # private bucket
+            self._client.storage.create_bucket(bucket_name, public=False)
