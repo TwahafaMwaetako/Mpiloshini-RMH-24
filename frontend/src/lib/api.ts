@@ -21,3 +21,4 @@ export async function diagnoseRecord(recordId: string): Promise<any> {
   if (!res.ok) throw new Error(`Failed to diagnose: ${res.status}`)
   return res.json()
 }
+

@@ -10,3 +10,4 @@ export default function NeumorphicCard({ children, className }: Props) {
     </div>
   )
 }
+
