@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Machine } from "@/entities/all";
-import { UploadFile } from "@/integrations/Core";
 import { Upload, FileText, CheckCircle, AlertCircle, ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
+import { machineAPI, uploadAPI, vibrationAPI } from "@/services/api";
 
 import FileUploadZone from "@/components/upload/FileUploadZone";
 import UploadProgress from "@/components/upload/UploadProgress";
@@ -24,10 +24,18 @@ export default function UploadPage() {
   });
 
   useEffect(() => {
-    // TODO: Fetch machines from your backend API
-    // For example:
-    // fetch('/api/machines').then(res => res.json()).then(setMachines);
+    fetchMachines();
   }, []);
+
+  const fetchMachines = async () => {
+    try {
+      const data = await machineAPI.getAll();
+      setMachines(data);
+    } catch (error) {
+      console.error('Failed to fetch machines:', error);
+      showError('Failed to load machines');
+    }
+  };
 
   const handleFileSelect = (files: File[]) => {
     setSelectedFiles(files);
@@ -57,18 +65,24 @@ export default function UploadPage() {
       }));
 
       try {
-        // Step 1: Upload the file
-        await UploadFile({ file });
+        // Step 1: Upload the file to storage
+        const uploadResult = await uploadAPI.uploadFile(file, metadata);
         
         setUploadStatus((prev: any) => ({
           ...prev,
           [i]: { ...prev[i], progress: 60 }
         }));
 
-        // Step 2: Create a record in your database
-        // TODO: Replace this with your actual API call to create a vibration record.
-        console.log("Creating database record for:", file.name, "with metadata:", metadata);
-        // Example: await createVibrationRecord({ ...metadata, file_name: file.name });
+        // Step 2: Create a vibration record in the database
+        await vibrationAPI.create({
+          machine_id: metadata.machine_id,
+          file_url: uploadResult.file_url,
+          file_name: file.name,
+          sensor_position: metadata.sensor_position,
+          axis: metadata.axis,
+          sampling_rate: parseInt(metadata.sampling_rate),
+          measurement_date: new Date().toISOString(),
+        });
 
         setUploadStatus((prev: any) => ({
           ...prev,

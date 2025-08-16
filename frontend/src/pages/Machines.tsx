@@ -6,6 +6,8 @@ import MachineCard from "@/components/machines/MachineCard";
 import MachineForm from "@/components/machines/MachineForm";
 import NeumorphicButton from "@/components/NeumorphicButton";
 import NeumorphicCard from "@/components/NeumorphicCard";
+import { machineAPI } from "@/services/api";
+import { showSuccess, showError } from "@/utils/toast";
 
 export default function Machines() {
   const [machines, setMachines] = useState<Machine[]>([]);
@@ -14,28 +16,38 @@ export default function Machines() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // TODO: Fetch machines data from your backend API
-    setLoading(false);
+    fetchMachines();
   }, []);
 
-  const handleSubmit = (machineData: Partial<Machine>) => {
-    if (editingMachine) {
-      // TODO: Replace with API call to update machine
-      // Example: updateMachine(editingMachine.id, machineData).then(() => {
-      //   // Refetch machines or update state locally
-      // });
-      console.log("Updating machine:", editingMachine.id, machineData);
-    } else {
-      // TODO: Replace with API call to create machine
-      // Example: createMachine(machineData).then(() => {
-      //   // Refetch machines or update state locally
-      // });
-      console.log("Creating machine:", machineData);
+  const fetchMachines = async () => {
+    try {
+      setLoading(true);
+      const data = await machineAPI.getAll();
+      setMachines(data);
+    } catch (error) {
+      console.error('Failed to fetch machines:', error);
+      showError('Failed to load machines');
+    } finally {
+      setLoading(false);
     }
-    // NOTE: You'll need to handle state updates after the API call succeeds.
-    // For now, we just close the form.
-    setShowForm(false);
-    setEditingMachine(null);
+  };
+
+  const handleSubmit = async (machineData: Partial<Machine>) => {
+    try {
+      if (editingMachine) {
+        await machineAPI.update(editingMachine.id, machineData);
+        showSuccess('Machine updated successfully');
+      } else {
+        await machineAPI.create(machineData);
+        showSuccess('Machine created successfully');
+      }
+      await fetchMachines(); // Refresh the list
+      setShowForm(false);
+      setEditingMachine(null);
+    } catch (error) {
+      console.error('Failed to save machine:', error);
+      showError(editingMachine ? 'Failed to update machine' : 'Failed to create machine');
+    }
   };
 
   const handleEdit = (machine: Machine) => {
@@ -43,13 +55,16 @@ export default function Machines() {
     setShowForm(true);
   };
 
-  const handleDelete = (machineId: string) => {
+  const handleDelete = async (machineId: string) => {
     if (window.confirm('Are you sure you want to delete this machine?')) {
-      // TODO: Replace with API call to delete machine
-      // Example: deleteMachine(machineId).then(() => {
-      //   // Refetch machines or update state locally
-      // });
-      console.log("Deleting machine:", machineId);
+      try {
+        await machineAPI.delete(machineId);
+        showSuccess('Machine deleted successfully');
+        await fetchMachines(); // Refresh the list
+      } catch (error) {
+        console.error('Failed to delete machine:', error);
+        showError('Failed to delete machine');
+      }
     }
   };
 
