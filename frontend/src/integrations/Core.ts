@@ -12,3 +12,4 @@ export async function UploadFile({ file }: { file: File }): Promise<{ file_url: 
   return { file_url: data.publicUrl, file_path: path }
 }
 
+

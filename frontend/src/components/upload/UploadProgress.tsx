@@ -28,3 +28,4 @@ export default function UploadProgress({ files, uploadStatus }: Props) {
   )
 }
 
+

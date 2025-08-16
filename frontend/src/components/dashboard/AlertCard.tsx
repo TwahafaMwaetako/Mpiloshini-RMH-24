@@ -1,4 +1,3 @@
-import NeumorphicCard from '../NeumorphicCard'
 import { AlertTriangle } from 'lucide-react'
 
 interface Alert {
@@ -12,7 +11,7 @@ interface Alert {
 export default function AlertCard({ alert }: { alert: Alert }) {
   const color = alert.severity === 'critical' ? 'text-red-600' : alert.severity === 'warning' ? 'text-orange-500' : 'text-gray-600'
   return (
-    <div className="p-4 rounded-xl shadow-[inset_6px_6px_12px_#bebebe,_inset_-6px_-6px_12px_#ffffff]">
+    <div className="p-4 rounded-xl neumorphic-inset">
       <div className="flex items-center gap-3">
         <AlertTriangle className={`w-5 h-5 ${color}`} />
         <div className="flex-1">

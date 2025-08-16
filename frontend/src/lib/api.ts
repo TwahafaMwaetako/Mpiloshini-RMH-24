@@ -22,3 +22,4 @@ export async function diagnoseRecord(recordId: string): Promise<any> {
   return res.json()
 }
 
+

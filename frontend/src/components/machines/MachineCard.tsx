@@ -32,3 +32,4 @@ export default function MachineCard({ machine, onEdit, onDelete }: { machine: an
   )
 }
 
+

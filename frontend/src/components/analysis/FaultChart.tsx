@@ -17,7 +17,7 @@ export default function FaultChart({ detections }: Props) {
             <span className="font-medium">{type}</span>
             <span className="text-gray-600">{count}</span>
           </div>
-          <div className="w-full h-3 rounded-full bg-[#e6e6e6]">
+          <div className="w-full h-3 rounded-full bg-[#e6e6e6] neumorphic-inset">
             <div className="h-3 rounded-full bg-[#5a7d9a]" style={{ width: `${(count / max) * 100}%` }} />
           </div>
         </div>

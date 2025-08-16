@@ -2,9 +2,9 @@ import { Settings } from 'lucide-react'
 
 export default function MachineStatusCard({ machine }: { machine: any }) {
   return (
-    <div className="p-4 rounded-xl shadow-[6px_6px_12px_#bebebe,_-6px_-6px_12px_#ffffff]">
+    <div className="p-4 rounded-xl neumorphic">
       <div className="flex items-center gap-3">
-        <div className="rounded-full p-3 shadow-[inset_6px_6px_12px_#bebebe,_inset_-6px_-6px_12px_#ffffff]">
+        <div className="rounded-full p-3 neumorphic-inset">
           <Settings className="w-5 h-5 text-[#5a7d9a]" />
         </div>
         <div className="flex-1">

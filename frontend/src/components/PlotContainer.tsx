@@ -12,3 +12,4 @@ export default function PlotContainer({ title, children }: Props) {
   )
 }
 
+

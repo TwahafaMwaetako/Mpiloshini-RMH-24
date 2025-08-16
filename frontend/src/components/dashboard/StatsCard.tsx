@@ -19,7 +19,7 @@ export default function StatsCard({ title, value, icon: Icon, trend, trendValue 
             <p className={`text-sm ${trend === 'up' ? 'text-green-600' : 'text-red-600'}`}>{trendValue}</p>
           )}
         </div>
-        <div className="rounded-full p-3 shadow-[inset_6px_6px_12px_#bebebe,_inset_-6px_-6px_12px_#ffffff]">
+        <div className="rounded-full p-3 neumorphic-inset">
           <Icon size={22} className="text-[#5a7d9a]" />
         </div>
       </div>

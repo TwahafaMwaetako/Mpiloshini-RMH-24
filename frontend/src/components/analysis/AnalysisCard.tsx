@@ -3,7 +3,7 @@ import { AlertTriangle } from 'lucide-react'
 export default function AnalysisCard({ record, detections, machines }: { record: any; detections: any[]; machines: any[] }) {
   const machineName = machines.find((m) => m.id === record.machine_id)?.name || 'Machine'
   return (
-    <div className="p-4 rounded-xl shadow-[inset_6px_6px_12px_#bebebe,_inset_-6px_-6px_12px_#ffffff]">
+    <div className="p-4 rounded-xl neumorphic-inset">
       <div className="flex items-start justify-between">
         <div>
           <h4 className="font-semibold text-gray-800">{record.file_name}</h4>
