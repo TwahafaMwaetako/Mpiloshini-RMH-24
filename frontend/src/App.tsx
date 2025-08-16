@@ -1,39 +1,39 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import Header from './components/Header'
-import Sidebar from './components/Sidebar'
-import LoginPage from './pages/LoginPage'
-import DashboardPage from './pages/DashboardPage'
-import UploadPage from './pages/UploadPage'
-import DiagnosticsPage from './pages/DiagnosticsPage'
-import MachinesPage from './pages/MachinesPage'
-import AnalysisPage from './pages/AnalysisPage'
-import ReportsPage from './pages/ReportsPage'
-import SettingsPage from './pages/SettingsPage'
+import { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import Sidebar from './components/layout/Sidebar';
+import Dashboard from './pages/Dashboard';
+import Machines from './pages/Machines';
+import Analysis from './pages/Analysis';
+import Reports from './pages/Reports';
+import Upload from './pages/Upload';
 
 function App() {
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    // Retrieve the stored preference, or default to not collapsed
+    return localStorage.getItem('sidebarCollapsed') === 'true';
+  });
+
+  // Save the user's preference whenever it changes
+  useEffect(() => {
+    localStorage.setItem('sidebarCollapsed', String(isCollapsed));
+  }, [isCollapsed]);
+
   return (
-    <BrowserRouter>
-      <div className="min-h-screen">
-        <Header />
-        <div className="flex">
-          <Sidebar />
-          <main className="flex-1 p-6">
-            <Routes>
-              <Route path="/" element={<DashboardPage />} />
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/machines" element={<MachinesPage />} />
-              <Route path="/upload" element={<UploadPage />} />
-              <Route path="/analysis" element={<AnalysisPage />} />
-              <Route path="/reports" element={<ReportsPage />} />
-              <Route path="/settings" element={<SettingsPage />} />
-              <Route path="/diagnose/:id" element={<DiagnosticsPage />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </main>
-        </div>
+    <Router>
+      <div className="flex min-h-screen bg-soft-light-gray">
+        <Sidebar isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} />
+        <main className="flex-1">
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/machines" element={<Machines />} />
+            <Route path="/analysis" element={<Analysis />} />
+            <Route path="/reports" element={<Reports />} />
+            <Route path="/upload" element={<Upload />} />
+          </Routes>
+        </main>
       </div>
-    </BrowserRouter>
-  )
+    </Router>
+  );
 }
 
-export default App
+export default App;

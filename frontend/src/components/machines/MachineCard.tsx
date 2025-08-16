@@ -1,35 +1,66 @@
-import { Settings, MapPin, Calendar, Pencil, Trash2 } from 'lucide-react'
+import React from 'react';
+import { Machine } from '@/entities/all';
+import NeumorphicCard from '@/components/NeumorphicCard';
+import NeumorphicButton from '@/components/NeumorphicButton';
+import { Settings, Trash2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
-export default function MachineCard({ machine, onEdit, onDelete }: { machine: any; onEdit: (m: any) => void; onDelete: (id: string) => void }) {
-  return (
-    <div className="p-5 rounded-xl shadow-[6px_6px_12px_#bebebe,_-6px_-6px_12px_#ffffff]">
-      <div className="flex items-start justify-between">
-        <div className="flex items-center gap-3">
-          <div className="rounded-full p-3 shadow-[inset_6px_6px_12px_#bebebe,_inset_-6px_-6px_12px_#ffffff]">
-            <Settings className="w-5 h-5 text-[#5a7d9a]" />
-          </div>
-          <div>
-            <h3 className="font-semibold text-gray-800">{machine.name}</h3>
-            <p className="text-sm text-gray-600">{machine.type || 'Machine'}</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <button onClick={() => onEdit(machine)} className="rounded-lg p-2 shadow-[6px_6px_12px_#bebebe,_-6px_-6px_12px_#ffffff]">
-            <Pencil className="w-4 h-4" />
-          </button>
-          <button onClick={() => onDelete(machine.id)} className="rounded-lg p-2 shadow-[6px_6px_12px_#bebebe,_-6px_-6px_12px_#ffffff]">
-            <Trash2 className="w-4 h-4 text-red-600" />
-          </button>
-        </div>
-      </div>
-      <div className="flex items-center gap-4 mt-3 text-sm text-gray-600">
-        <span className="flex items-center gap-1"><MapPin className="w-4 h-4" /> {machine.location || '—'}</span>
-        {machine.commissioning_date && (
-          <span className="flex items-center gap-1"><Calendar className="w-4 h-4" /> {new Date(machine.commissioning_date).toLocaleDateString()}</span>
-        )}
-      </div>
-    </div>
-  )
+interface MachineCardProps {
+  machine: Machine;
+  onEdit: (machine: Machine) => void;
+  onDelete: (id: string) => void;
 }
 
+const MachineCard: React.FC<MachineCardProps> = ({ machine, onEdit, onDelete }) => {
+  const getHealthColor = (score: number) => {
+    if (score > 90) return "bg-green-500";
+    if (score > 70) return "bg-yellow-500";
+    return "bg-red-500";
+  };
 
+  return (
+    <NeumorphicCard>
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold text-text-dark-gray">{machine.name}</h3>
+        <span
+          className={cn(
+            "rounded-full px-2.5 py-1 text-xs font-medium text-white",
+            machine.status === "active" ? "bg-green-500" : machine.status === 'maintenance' ? 'bg-yellow-500' : "bg-gray-400"
+          )}
+        >
+          {machine.status}
+        </span>
+      </div>
+      <p className="mt-1 text-sm capitalize text-text-body">{machine.type}</p>
+      
+      <div className="mt-4">
+        <div className="flex justify-between text-sm">
+          <span className="text-text-body">Health Score</span>
+          <span className="font-semibold text-text-dark-gray">
+            {machine.health_score}%
+          </span>
+        </div>
+        <div className="mt-1 h-2 w-full rounded-full bg-soft-light-gray shadow-neumorphic-inset">
+          <div
+            className={cn(
+              "h-full rounded-full",
+              getHealthColor(machine.health_score)
+            )}
+            style={{ width: `${machine.health_score}%` }}
+          ></div>
+        </div>
+      </div>
+
+      <div className="mt-6 flex justify-end gap-3">
+        <NeumorphicButton onClick={() => onEdit(machine)} className="px-3 py-1.5 text-sm">
+          <Settings className="h-4 w-4" />
+        </NeumorphicButton>
+        <NeumorphicButton onClick={() => onDelete(machine.id)} className="px-3 py-1.5 text-sm bg-red-500/10 text-red-600 hover:bg-red-500/20">
+          <Trash2 className="h-4 w-4" />
+        </NeumorphicButton>
+      </div>
+    </NeumorphicCard>
+  );
+};
+
+export default MachineCard;

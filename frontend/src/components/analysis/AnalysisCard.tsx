@@ -1,30 +1,62 @@
-import { AlertTriangle } from 'lucide-react'
+import React from 'react';
+import { VibrationRecord, FaultDetection, Machine } from '@/entities/all';
+import NeumorphicCard from '@/components/NeumorphicCard';
+import { Badge } from '@/components/ui/badge';
+import { CheckCircle, AlertTriangle, Clock } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
-export default function AnalysisCard({ record, detections, machines }: { record: any; detections: any[]; machines: any[] }) {
-  const machineName = machines.find((m) => m.id === record.machine_id)?.name || 'Machine'
-  return (
-    <div className="p-4 rounded-xl neumorphic-inset">
-      <div className="flex items-start justify-between">
-        <div>
-          <h4 className="font-semibold text-gray-800">{record.file_name}</h4>
-          <p className="text-sm text-gray-600">{machineName} • {record.axis ?? 'N/A'}-axis • {record.sampling_rate ?? '—'} Hz</p>
-        </div>
-        <span className="text-xs font-medium text-green-600">Processed</span>
-      </div>
-      {detections.length > 0 ? (
-        <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2">
-          {detections.slice(0, 4).map((d) => (
-            <div key={d.id} className="flex items-center gap-2 text-sm">
-              <AlertTriangle className={`w-4 h-4 ${d.severity_score > 80 ? 'text-red-600' : 'text-orange-500'}`} />
-              <span className="font-medium">{d.fault_type}</span>
-              <span className="text-gray-600">{Math.round(d.severity_score)}</span>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <p className="text-sm text-gray-600 mt-2">No faults detected.</p>
-      )}
-    </div>
-  )
+interface AnalysisCardProps {
+  record: VibrationRecord;
+  detections: FaultDetection[];
+  machines: Machine[];
 }
 
+const AnalysisCard: React.FC<AnalysisCardProps> = ({ record, detections, machines }) => {
+  const machine = machines.find(m => m.id === (record as any).machine_id);
+
+  const getSeverityColor = (score: number) => {
+    if (score > 80) return 'bg-red-500/20 text-red-700';
+    if (score > 60) return 'bg-orange-500/20 text-orange-700';
+    return 'bg-yellow-500/20 text-yellow-700';
+  };
+
+  return (
+    <NeumorphicCard className="p-4 shadow-neumorphic-inset">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <p className="text-sm font-semibold text-text-dark-gray">{machine?.name || 'Unknown Machine'}</p>
+          <p className="text-xs text-text-body">{record.file_name}</p>
+        </div>
+        <div className="flex items-center gap-2 text-xs font-medium">
+          {record.processed ? (
+            <>
+              <CheckCircle className="h-4 w-4 text-green-600" />
+              <span className="text-green-600">Processed</span>
+            </>
+          ) : (
+            <>
+              <Clock className="h-4 w-4 text-orange-500" />
+              <span className="text-orange-500">Processing</span>
+            </>
+          )}
+        </div>
+      </div>
+      
+      {detections.length > 0 && (
+        <div className="mt-3 space-y-2 border-t border-gray-300 pt-3">
+          <h4 className="text-xs font-semibold uppercase text-text-body">Detected Faults</h4>
+          <div className="flex flex-wrap gap-2">
+            {detections.map(detection => (
+              <Badge key={detection.id} className={cn("font-normal", getSeverityColor(detection.severity_score))}>
+                <AlertTriangle className="mr-1.5 h-3 w-3" />
+                {detection.fault_type} (Severity: {detection.severity_score})
+              </Badge>
+            ))}
+          </div>
+        </div>
+      )}
+    </NeumorphicCard>
+  );
+};
+
+export default AnalysisCard;

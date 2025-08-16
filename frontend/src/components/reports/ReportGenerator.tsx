@@ -1,15 +1,66 @@
-export default function ReportGenerator({ records, machines, onClose }: { records: any[]; machines: any[]; onClose: () => void }) {
-  return (
-    <div className="fixed inset-0 bg-black/20 flex items-center justify-center">
-      <div className="w-full max-w-2xl p-6 rounded-2xl shadow-[6px_6px_12px_#bebebe,_-6px_-6px_12px_#ffffff] bg-[var(--neumorphic-bg)]">
-        <h3 className="text-xl font-bold text-gray-800 mb-4">Generate Report</h3>
-        <p className="text-sm text-gray-600 mb-4">Generate a detailed report for the selected period and machines. This is a placeholder — hook up PDF generation next.</p>
-        <div className="flex gap-3 justify-end">
-          <button className="rounded-lg px-4 py-2 shadow-[6px_6px_12px_#bebebe,_-6px_-6px_12px_#ffffff]" onClick={onClose}>Close</button>
-          <button className="rounded-lg px-4 py-2 text-white bg-[#5a7d9a] shadow-[6px_6px_12px_#bebebe,_-6px_-6px_12px_#ffffff]">Generate</button>
-        </div>
-      </div>
-    </div>
-  )
+import React, { useEffect, useState } from 'react';
+import { Machine, VibrationRecord } from '@/entities/all';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import NeumorphicButton from '@/components/NeumorphicButton';
+import { PDFDownloadLink } from '@react-pdf/renderer';
+import DetailedReportDocument from './DetailedReportDocument';
+import { Download, Loader2 } from 'lucide-react';
+
+interface ReportGeneratorProps {
+  open: boolean;
+  onClose: () => void;
+  records: (VibrationRecord & { machine_id: string })[];
+  machines: Machine[];
 }
 
+const ReportGenerator: React.FC<ReportGeneratorProps> = ({ open, onClose, records, machines }) => {
+  const [isClient, setIsClient] = useState(false);
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[425px] bg-soft-light-gray">
+        <DialogHeader>
+          <DialogTitle>Generate Detailed Report</DialogTitle>
+          <DialogDescription>
+            A detailed PDF report will be generated based on your current filters.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="py-4">
+          <p className="text-sm text-text-body">
+            The report will include <span className="font-semibold">{records.length}</span> records from <span className="font-semibold">{new Set(records.map(r => r.machine_id)).size}</span> unique machines.
+          </p>
+        </div>
+        <DialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
+          <NeumorphicButton onClick={onClose} variant="secondary">Close</NeumorphicButton>
+          {isClient && (
+            <PDFDownloadLink
+              document={<DetailedReportDocument records={records} machines={machines} />}
+              fileName={`vibrasense-report-${new Date().toISOString().split('T')[0]}.pdf`}
+            >
+              {({ loading }) => (
+                <NeumorphicButton disabled={loading}>
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="mr-2 h-4 w-4" />
+                      Download PDF
+                    </>
+                  )}
+                </NeumorphicButton>
+              )}
+            </PDFDownloadLink>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+export default ReportGenerator;

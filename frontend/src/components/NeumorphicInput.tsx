@@ -1,13 +1,23 @@
-import React from 'react'
+import { cn } from "@/lib/utils";
+import React from "react";
 
-type Props = React.InputHTMLAttributes<HTMLInputElement>
+interface NeumorphicInputProps extends React.InputHTMLAttributes<HTMLInputElement> {}
 
-export default function NeumorphicInput(props: Props) {
-  return (
-    <input
-      {...props}
-      className={`p-4 rounded-lg neumorphic-inset bg-transparent ${props.className ?? ''}`}
-    />
-  )
-}
+const NeumorphicInput = React.forwardRef<HTMLInputElement, NeumorphicInputProps>(
+  ({ className, ...props }, ref) => {
+    return (
+      <input
+        ref={ref}
+        className={cn(
+          "w-full rounded-lg border-none bg-soft-light-gray p-3 text-text-dark-gray shadow-neumorphic-inset placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-accent-subtle",
+          className
+        )}
+        {...props}
+      />
+    );
+  }
+);
 
+NeumorphicInput.displayName = "NeumorphicInput";
+
+export default NeumorphicInput;

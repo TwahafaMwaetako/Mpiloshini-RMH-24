@@ -1,31 +1,52 @@
-interface Props {
-  files: File[]
-  uploadStatus: Record<number, { progress: number; status: 'pending' | 'uploading' | 'completed' | 'error'; error?: string | null }>
+import React from 'react';
+import { FileText, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+
+interface UploadStatus {
+  [key: number]: {
+    progress: number;
+    status: 'pending' | 'uploading' | 'completed' | 'error';
+    error: string | null;
+  };
 }
 
-export default function UploadProgress({ files, uploadStatus }: Props) {
+interface UploadProgressProps {
+  files: File[];
+  uploadStatus: UploadStatus;
+}
+
+const UploadProgress: React.FC<UploadProgressProps> = ({ files, uploadStatus }) => {
   return (
-    <div className="space-y-3">
-      {files.map((file, idx) => {
-        const st = uploadStatus[idx] || { progress: 0, status: 'pending' }
+    <ul className="space-y-3">
+      {files.map((file, index) => {
+        const status = uploadStatus[index] || { progress: 0, status: 'pending', error: null };
+        const isCompleted = status.status === 'completed';
+        const isError = status.status === 'error';
+        const isUploading = status.status === 'uploading';
+
         return (
-          <div key={idx} className="p-3 rounded-lg shadow-[inset_6px_6px_12px_#bebebe,_inset_-6px_-6px_12px_#ffffff]">
-            <div className="flex justify-between text-sm mb-2">
-              <span className="font-medium">{file.name}</span>
-              <span>{st.status}</span>
+          <li key={index} className="flex items-center gap-4">
+            <div className="flex-shrink-0">
+              {isCompleted ? (
+                <CheckCircle className="h-6 w-6 text-green-500" />
+              ) : isError ? (
+                <AlertCircle className="h-6 w-6 text-red-500" />
+              ) : isUploading ? (
+                <Loader2 className="h-6 w-6 animate-spin text-accent-subtle" />
+              ) : (
+                <FileText className="h-6 w-6 text-text-body" />
+              )}
             </div>
-            <div className="w-full h-2 rounded-full bg-[#e6e6e6]">
-              <div
-                className="h-2 rounded-full bg-[#5a7d9a]"
-                style={{ width: `${Math.min(100, Math.max(0, st.progress))}%` }}
-              />
+            <div className="flex-1">
+              <p className="truncate text-sm font-medium text-text-dark-gray">{file.name}</p>
+              <Progress value={status.progress} className="mt-1 h-1.5" />
+              {isError && <p className="mt-1 text-xs text-red-500">{status.error}</p>}
             </div>
-            {st.error && <p className="text-xs text-red-600 mt-1">{st.error}</p>}
-          </div>
-        )
+          </li>
+        );
       })}
-    </div>
-  )
-}
+    </ul>
+  );
+};
 
-
+export default UploadProgress;
