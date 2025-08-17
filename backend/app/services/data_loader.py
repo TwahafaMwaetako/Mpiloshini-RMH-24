@@ -1,7 +1,8 @@
 import os
-from io import StringIO
+from io import StringIO, BytesIO
 from typing import Tuple
 import numpy as np
+from scipy.io import loadmat
 
 from ..services.supabase_service import SupabaseService
 
@@ -19,6 +20,8 @@ class DataLoader:
 
         if file_ext == ".csv":
             return self._parse_csv(raw_bytes), sampling_rate_hz
+        elif file_ext == ".mat":
+            return self._parse_mat(raw_bytes), sampling_rate_hz
         elif file_ext == ".wav":
             # Placeholder for WAV parser (scipy/soundfile recommended)
             raise NotImplementedError("WAV parsing not implemented yet")
@@ -34,3 +37,17 @@ class DataLoader:
         if data.ndim > 1 and data.shape[1] > 1:
             data = data[:, 0]
         return np.asarray(data, dtype=float)
+
+    def _parse_mat(self, raw_bytes: bytes) -> np.ndarray:
+        # Load the .mat file from bytes
+        mat_file = BytesIO(raw_bytes)
+        mat_data = loadmat(mat_file)
+
+        # Find the first variable that is a numpy array and not a metadata key
+        for key, value in mat_data.items():
+            if not key.startswith("__") and isinstance(value, np.ndarray):
+                # Assuming the first ndarray found is the signal data
+                signal = value.flatten()
+                return np.asarray(signal, dtype=float)
+
+        raise ValueError("No suitable signal data found in .mat file")
