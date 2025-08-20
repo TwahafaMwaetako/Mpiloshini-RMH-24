@@ -179,3 +179,16 @@ class SupabaseService:
         if bucket_name not in names:
             # private bucket
             self._client.storage.create_bucket(bucket_name, public=False)
+    
+    def get_latest_baseline(self, machine_id: str) -> Optional[Dict[str, Any]]:
+        """Get the latest baseline signature for a machine"""
+        if self._client is None:
+            raise RuntimeError("Supabase client is not configured")
+        try:
+            resp = self._client.table("baseline_signatures").select("*").eq("machine_id", machine_id).order("created_at", desc=True).limit(1).execute()
+            data = getattr(resp, "data", None)
+            if data and len(data) > 0:
+                return data[0]
+            return None
+        except Exception:
+            return None

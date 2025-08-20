@@ -95,6 +95,13 @@ export const uploadAPI = {
 
     return response.json();
   },
+  
+  createVibrationRecord: async (recordData: any) => {
+    return apiCall<any>('/upload/vibration-record', {
+      method: 'POST',
+      body: JSON.stringify(recordData),
+    });
+  },
 };
 
 // Diagnosis API

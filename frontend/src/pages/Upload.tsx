@@ -3,6 +3,7 @@ import { Machine } from "@/entities/all";
 import { Upload, FileText, CheckCircle, AlertCircle, ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
 import { machineAPI, uploadAPI, vibrationAPI } from "@/services/api";
+import { uploadFileToSupabase } from "@/lib/supabase";
 
 import FileUploadZone from "@/components/upload/FileUploadZone";
 import UploadProgress from "@/components/upload/UploadProgress";
@@ -65,24 +66,32 @@ export default function UploadPage() {
       }));
 
       try {
-        // Step 1: Upload the file to storage
-        const uploadResult = await uploadAPI.uploadFile(file, metadata);
+        // Step 1: Upload the file to Supabase Storage
+        const { path: storagePath, url: fileUrl } = await uploadFileToSupabase(file);
         
         setUploadStatus((prev: any) => ({
           ...prev,
-          [i]: { ...prev[i], progress: 60 }
+          [i]: { ...prev[i], progress: 40 }
         }));
 
-        // Step 2: Create a vibration record in the database
-        await vibrationAPI.create({
+        // Step 2: Create a vibration record in the backend
+        const recordData = {
           machine_id: metadata.machine_id,
-          file_url: uploadResult.file_url,
+          file_path: storagePath,
+          file_url: fileUrl,
           file_name: file.name,
           sensor_position: metadata.sensor_position,
           axis: metadata.axis,
           sampling_rate: parseInt(metadata.sampling_rate),
           measurement_date: new Date().toISOString(),
-        });
+        };
+        
+        await uploadAPI.createVibrationRecord(recordData);
+        
+        setUploadStatus((prev: any) => ({
+          ...prev,
+          [i]: { ...prev[i], progress: 80 }
+        }));
 
         setUploadStatus((prev: any) => ({
           ...prev,

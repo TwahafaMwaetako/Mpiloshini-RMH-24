@@ -17,10 +17,13 @@ const FileUploadZone: React.FC<FileUploadZoneProps> = ({ onFileSelect }) => {
     accept: {
       "text/csv": [".csv"],
       "audio/wav": [".wav"],
-      "application/octet-stream": [".tdms"],
+      "audio/x-wav": [".wav"],
+      "application/octet-stream": [".tdms", ".mat", ".mdf"],
+      "application/matlab-mat": [".mat"],
       "application/x-matlab-data": [".mat"],
       "application/x-mdf": [".mdf"],
     },
+    multiple: true,
   });
 
   return (
