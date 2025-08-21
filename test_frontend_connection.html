@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frontend Connection Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .info { background-color: #d1ecf1; color: #0c5460; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        #fileInput { margin: 10px 0; }
+        #uploadProgress { margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>Mpiloshini RMH 24 - Frontend Connection Test</h1>
+    
+    <div id="results"></div>
+    
+    <h2>API Tests</h2>
+    <button onclick="testHealth()">Test Health Endpoint</button>
+    <button onclick="testMachines()">Test Machines Endpoint</button>
+    
+    <h2>File Upload Test</h2>
+    <input type="file" id="fileInput" accept=".csv,.mat,.wav,.tdms,.mdf">
+    <br>
+    <button onclick="testFileUpload()">Test File Upload</button>
+    <div id="uploadProgress"></div>
+
+    <script>
+        const API_URL = 'http://localhost:8000';
+        
+        function addResult(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `test-result ${type}`;
+            div.textContent = `${new Date().toLocaleTimeString()}: ${message}`;
+            results.appendChild(div);
+            results.scrollTop = results.scrollHeight;
+        }
+        
+        async function testHealth() {
+            try {
+                addResult('Testing health endpoint...', 'info');
+                const response = await fetch(`${API_URL}/health`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    addResult(`✓ Health check passed: ${data.status}`, 'success');
+                } else {
+                    addResult(`✗ Health check failed: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                addResult(`✗ Health check error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testMachines() {
+            try {
+                addResult('Testing machines endpoint...', 'info');
+                const response = await fetch(`${API_URL}/records/machines`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    addResult(`✓ Machines endpoint passed: Found ${data.length} machines`, 'success');
+                    data.forEach(machine => {
+                        addResult(`  - ${machine.name} (${machine.type})`, 'info');
+                    });
+                } else {
+                    addResult(`✗ Machines endpoint failed: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                addResult(`✗ Machines endpoint error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testFileUpload() {
+            const fileInput = document.getElementById('fileInput');
+            const progressDiv = document.getElementById('uploadProgress');
+            
+            if (!fileInput.files.length) {
+                addResult('Please select a file first', 'error');
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            
+            try {
+                addResult(`Testing file upload: ${file.name} (${file.size} bytes)`, 'info');
+                progressDiv.textContent = 'Uploading...';
+                
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('machine_id', 'test-machine');
+                formData.append('sensor_position', 'Drive End');
+                formData.append('axis', 'Horizontal');
+                formData.append('sampling_rate', '1000');
+                
+                const response = await fetch(`${API_URL}/upload/file`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    addResult(`✓ File upload successful: ${data.file_name}`, 'success');
+                    addResult(`  Storage path: ${data.storage_path}`, 'info');
+                    addResult(`  File size: ${data.size} bytes`, 'info');
+                    progressDiv.textContent = 'Upload completed!';
+                    
+                    // Test creating vibration record
+                    await testVibrationRecord(data);
+                } else {
+                    addResult(`✗ File upload failed: ${data.detail || response.status}`, 'error');
+                    progressDiv.textContent = 'Upload failed!';
+                }
+            } catch (error) {
+                addResult(`✗ File upload error: ${error.message}`, 'error');
+                progressDiv.textContent = 'Upload error!';
+            }
+        }
+        
+        async function testVibrationRecord(uploadData) {
+            try {
+                addResult('Creating vibration record...', 'info');
+                
+                const recordData = {
+                    machine_id: 'test-machine',
+                    file_path: uploadData.storage_path,
+                    file_url: uploadData.file_url,
+                    file_name: uploadData.file_name,
+                    sensor_position: 'Drive End',
+                    axis: 'Horizontal',
+                    sampling_rate: 1000,
+                    measurement_date: new Date().toISOString()
+                };
+                
+                const response = await fetch(`${API_URL}/upload/vibration-record`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(recordData)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    addResult(`✓ Vibration record created: ${data.record_id}`, 'success');
+                    
+                    // Test analysis
+                    await testAnalysis(data.record_id);
+                } else {
+                    addResult(`✗ Vibration record creation failed: ${data.detail || response.status}`, 'error');
+                }
+            } catch (error) {
+                addResult(`✗ Vibration record error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testAnalysis(recordId) {
+            try {
+                addResult('Running analysis...', 'info');
+                
+                const response = await fetch(`${API_URL}/diagnose/analyze/${recordId}`, {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    addResult(`✓ Analysis completed successfully!`, 'success');
+                    addResult(`  Health Score: ${data.health_score}`, 'info');
+                    
+                    const faults = data.fault_detection?.detected_faults || [];
+                    if (faults.length > 0) {
+                        addResult(`  Detected ${faults.length} fault(s):`, 'info');
+                        faults.forEach(fault => {
+                            addResult(`    - ${fault.fault_type}: ${fault.severity?.toFixed(1)}% severity`, 'info');
+                        });
+                    } else {
+                        addResult(`  No faults detected`, 'info');
+                    }
+                } else {
+                    addResult(`✗ Analysis failed: ${data.detail || response.status}`, 'error');
+                }
+            } catch (error) {
+                addResult(`✗ Analysis error: ${error.message}`, 'error');
+            }
+        }
+        
+        // Auto-run health check on page load
+        window.onload = function() {
+            addResult('Frontend connection test started', 'info');
+            testHealth();
+        };
+    </script>
+</body>
+</html>

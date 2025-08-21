@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple MAT File Upload Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; max-width: 800px; }
+        .form-group { margin: 15px 0; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input, select { width: 100%; padding: 8px; margin-bottom: 10px; }
+        button { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .info { background-color: #d1ecf1; color: #0c5460; }
+        .progress { width: 100%; height: 20px; background: #f0f0f0; border-radius: 10px; overflow: hidden; }
+        .progress-bar { height: 100%; background: #007bff; transition: width 0.3s; }
+    </style>
+</head>
+<body>
+    <h1>Simple MAT File Upload Test</h1>
+    <p>This is a simplified test to upload .mat files directly to the backend.</p>
+    
+    <form id="uploadForm">
+        <div class="form-group">
+            <label for="fileInput">Select MAT File:</label>
+            <input type="file" id="fileInput" accept=".mat" required>
+            <small>Select a .mat file from: c:\Users\piono\Mpiloshini RMH 24\test_data</small>
+        </div>
+        
+        <div class="form-group">
+            <label for="machineSelect">Machine:</label>
+            <select id="machineSelect" required>
+                <option value="">Loading machines...</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="sensorPosition">Sensor Position:</label>
+            <input type="text" id="sensorPosition" value="Drive End" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="axis">Axis:</label>
+            <input type="text" id="axis" value="Horizontal" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="samplingRate">Sampling Rate (Hz):</label>
+            <input type="number" id="samplingRate" value="12000" required>
+        </div>
+        
+        <button type="submit" id="uploadBtn">Upload & Analyze MAT File</button>
+    </form>
+    
+    <div id="progress" class="progress" style="display: none;">
+        <div id="progressBar" class="progress-bar" style="width: 0%;"></div>
+    </div>
+    
+    <div id="results"></div>
+
+    <script>
+        const API_URL = 'http://localhost:8000';
+        let machines = [];
+        
+        function addResult(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `result ${type}`;
+            div.innerHTML = `<strong>${new Date().toLocaleTimeString()}:</strong> ${message}`;
+            results.appendChild(div);
+            results.scrollTop = results.scrollHeight;
+        }
+        
+        function updateProgress(percent, message = '') {
+            const progressDiv = document.getElementById('progress');
+            const progressBar = document.getElementById('progressBar');
+            
+            if (percent > 0) {
+                progressDiv.style.display = 'block';
+                progressBar.style.width = percent + '%';
+                if (message) {
+                    progressBar.textContent = message;
+                }
+            } else {
+                progressDiv.style.display = 'none';
+            }
+        }
+        
+        async function loadMachines() {
+            try {
+                addResult('Loading machines...', 'info');
+                const response = await fetch(`${API_URL}/records/machines`);
+                const data = await response.json();
+                
+                const select = document.getElementById('machineSelect');
+                select.innerHTML = '<option value="">Select a machine</option>';
+                
+                if (response.ok && data.length > 0) {
+                    machines = data;
+                    data.forEach(machine => {
+                        const option = document.createElement('option');
+                        option.value = machine.id;
+                        option.textContent = `${machine.name} (${machine.type})`;
+                        select.appendChild(option);
+                    });
+                    addResult(`✅ Loaded ${data.length} machines`, 'success');
+                    
+                    // Auto-select first machine for convenience
+                    select.value = data[0].id;
+                } else {
+                    addResult('❌ No machines found', 'error');
+                }
+            } catch (error) {
+                addResult(`❌ Failed to load machines: ${error.message}`, 'error');
+            }
+        }
+        
+        async function uploadAndAnalyze(formData) {
+            try {
+                updateProgress(10, 'Uploading file...');
+                addResult('🔄 Starting upload...', 'info');
+                
+                // Step 1: Upload file
+                const uploadResponse = await fetch(`${API_URL}/upload/file`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!uploadResponse.ok) {
+                    const errorData = await uploadResponse.json();
+                    throw new Error(errorData.detail || `Upload failed: ${uploadResponse.status}`);
+                }
+                
+                const uploadResult = await uploadResponse.json();
+                updateProgress(40, 'Creating record...');
+                addResult(`✅ File uploaded: ${uploadResult.file_name} (${uploadResult.size} bytes)`, 'success');
+                
+                // Step 2: Create vibration record
+                const recordData = {
+                    machine_id: formData.get('machine_id'),
+                    file_path: uploadResult.storage_path,
+                    file_url: uploadResult.file_url,
+                    file_name: uploadResult.file_name,
+                    sensor_position: formData.get('sensor_position'),
+                    axis: formData.get('axis'),
+                    sampling_rate: parseInt(formData.get('sampling_rate')),
+                    measurement_date: new Date().toISOString()
+                };
+                
+                const recordResponse = await fetch(`${API_URL}/upload/vibration-record`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(recordData)
+                });
+                
+                if (!recordResponse.ok) {
+                    const errorData = await recordResponse.json();
+                    throw new Error(errorData.detail || `Record creation failed: ${recordResponse.status}`);
+                }
+                
+                const recordResult = await recordResponse.json();
+                updateProgress(70, 'Running analysis...');
+                addResult(`✅ Vibration record created: ${recordResult.record_id}`, 'success');
+                
+                // Step 3: Run analysis
+                const analysisResponse = await fetch(`${API_URL}/diagnose/analyze/${recordResult.record_id}`, {
+                    method: 'POST'
+                });
+                
+                if (!analysisResponse.ok) {
+                    const errorData = await analysisResponse.json();
+                    throw new Error(errorData.detail || `Analysis failed: ${analysisResponse.status}`);
+                }
+                
+                const analysisResult = await analysisResponse.json();
+                updateProgress(100, 'Complete!');
+                
+                // Display results
+                addResult(`🎉 Analysis completed successfully!`, 'success');
+                addResult(`📊 Health Score: ${analysisResult.health_score}`, 'info');
+                
+                const fileInfo = analysisResult.file_info || {};
+                if (fileInfo.format) {
+                    addResult(`📁 File Format: ${fileInfo.format}`, 'info');
+                    addResult(`📏 Signal Length: ${fileInfo.length} samples`, 'info');
+                    addResult(`⏱️ Sampling Rate: ${fileInfo.estimated_sampling_rate} Hz`, 'info');
+                }
+                
+                const faults = analysisResult.fault_detection?.detected_faults || [];
+                if (faults.length > 0) {
+                    addResult(`🚨 Detected ${faults.length} fault(s):`, 'error');
+                    faults.forEach(fault => {
+                        addResult(`   • ${fault.fault_type}: ${fault.severity?.toFixed(1)}% severity`, 'error');
+                    });
+                } else {
+                    addResult(`✅ No faults detected - Machine appears healthy`, 'success');
+                }
+                
+                const recommendations = analysisResult.recommendations || [];
+                if (recommendations.length > 0) {
+                    addResult(`📋 Recommendations:`, 'info');
+                    recommendations.forEach(rec => {
+                        const emoji = rec.priority === 'high' ? '🔴' : rec.priority === 'medium' ? '🟡' : '🟢';
+                        addResult(`   ${emoji} ${rec.action} (${rec.priority} priority)`, 'info');
+                    });
+                }
+                
+                setTimeout(() => updateProgress(0), 2000);
+                
+            } catch (error) {
+                updateProgress(0);
+                addResult(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+        
+        // Form submission handler
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const fileInput = document.getElementById('fileInput');
+            const machineSelect = document.getElementById('machineSelect');
+            const sensorPosition = document.getElementById('sensorPosition');
+            const axis = document.getElementById('axis');
+            const samplingRate = document.getElementById('samplingRate');
+            
+            if (!fileInput.files.length) {
+                addResult('❌ Please select a file', 'error');
+                return;
+            }
+            
+            if (!machineSelect.value) {
+                addResult('❌ Please select a machine', 'error');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            formData.append('machine_id', machineSelect.value);
+            formData.append('sensor_position', sensorPosition.value);
+            formData.append('axis', axis.value);
+            formData.append('sampling_rate', samplingRate.value);
+            
+            await uploadAndAnalyze(formData);
+        });
+        
+        // Load machines on page load
+        window.addEventListener('load', loadMachines);
+    </script>
+</body>
+</html>

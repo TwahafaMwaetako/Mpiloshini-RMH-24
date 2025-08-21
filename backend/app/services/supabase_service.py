@@ -10,16 +10,40 @@ except Exception:  # pragma: no cover
 
 
 class SupabaseService:
+    _instance = None
+    _local_records = {}
+    _local_diagnoses = {}
+    _local_fault_detections = {}
+    
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(SupabaseService, cls).__new__(cls)
+        return cls._instance
+    
     def __init__(self) -> None:
+        if hasattr(self, '_initialized'):
+            return
+        self._initialized = True
         if not settings.supabase_url or not settings.supabase_service_key:
             # Allow initialization in stub mode for local dev without envs
             self._client = None
         else:
             if create_client is None:
                 raise RuntimeError("supabase client library not available")
-            self._client: Client = create_client(
-                settings.supabase_url, settings.supabase_service_key
-            )
+            try:
+                self._client: Client = create_client(
+                    settings.supabase_url, 
+                    settings.supabase_service_key,
+                    options={
+                        "schema": "public",
+                        "auto_refresh_token": True,
+                        "persist_session": True
+                    }
+                )
+            except Exception as e:
+                print(f"Failed to initialize Supabase client: {e}")
+                # For development, allow fallback to None client
+                self._client = None
 
     def create_signed_upload_url(self, file_name: str, content_type: str) -> Tuple[str, str]:
         raise NotImplementedError("Supabase signed upload URL (Python) not implemented")
@@ -40,7 +64,22 @@ class SupabaseService:
 
     def create_vibration_record_from_dict(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         if self._client is None:
-            raise RuntimeError("Supabase client is not configured. Set SUPABASE_URL and SUPABASE_SERVICE_KEY")
+            # Fallback to in-memory storage for development
+            import uuid
+            record_id = str(uuid.uuid4())
+            record = {
+                "id": record_id,
+                "sensor_id": payload["sensor_id"],
+                "file_path": payload["file_path"],
+                "timestamp": payload["timestamp"].isoformat() if hasattr(payload["timestamp"], "isoformat") else payload["timestamp"],
+                "status": payload.get("status", "unprocessed"),
+                "uploaded_by": payload.get("uploaded_by"),
+                "created_at": payload.get("timestamp", "2025-01-21T12:00:00Z")
+            }
+            # Store in a simple in-memory dict for development
+            SupabaseService._local_records[record_id] = record
+            return record
+            
         to_insert = {
             "sensor_id": payload["sensor_id"],
             "file_path": payload["file_path"],
@@ -55,7 +94,9 @@ class SupabaseService:
 
     def get_vibration_record(self, record_id: str) -> Optional[Dict[str, Any]]:
         if self._client is None:
-            raise RuntimeError("Supabase client is not configured")
+            # Fallback to local storage
+            return SupabaseService._local_records.get(record_id)
+            
         resp = self._client.table("vibration_records").select("*").eq("id", record_id).single().execute()
         return getattr(resp, "data", None)
 
@@ -102,7 +143,18 @@ class SupabaseService:
 
     def insert_diagnosis(self, record_id: str, findings: List[Dict[str, Any]], health_score: int) -> str:
         if self._client is None:
-            raise RuntimeError("Supabase client is not configured")
+            # Fallback to local storage
+            import uuid
+            diagnosis_id = str(uuid.uuid4())
+            SupabaseService._local_diagnoses[diagnosis_id] = {
+                "id": diagnosis_id,
+                "record_id": record_id,
+                "results": findings,
+                "health_score": health_score,
+                "created_at": "2025-01-21T12:00:00Z"
+            }
+            return diagnosis_id
+            
         payload = {"record_id": record_id, "results": findings, "health_score": health_score}
         resp = self._client.table("diagnoses").insert(payload).execute()
         data = getattr(resp, "data", None)
@@ -112,7 +164,21 @@ class SupabaseService:
 
     def insert_fault_detections(self, record_id: str, findings: List[Dict[str, Any]]) -> None:
         if self._client is None:
-            raise RuntimeError("Supabase client is not configured")
+            # Fallback to local storage
+            for f in findings:
+                import uuid
+                detection_id = str(uuid.uuid4())
+                SupabaseService._local_fault_detections[detection_id] = {
+                    "id": detection_id,
+                    "record_id": record_id,
+                    "fault_type": f["fault_type"],
+                    "severity_score": float(f.get("severity", 0.0)),
+                    "confidence": float(f.get("confidence", 0.0)),
+                    "details": f,
+                    "created_at": "2025-01-21T12:00:00Z"
+                }
+            return
+            
         rows = [
             {
                 "record_id": record_id,
@@ -128,12 +194,30 @@ class SupabaseService:
 
     def mark_record_processed(self, record_id: str) -> None:
         if self._client is None:
-            raise RuntimeError("Supabase client is not configured")
+            # Fallback to local storage
+            if record_id in SupabaseService._local_records:
+                SupabaseService._local_records[record_id]["status"] = "processed"
+            return
+            
         self._client.table("vibration_records").update({"status": "processed"}).eq("id", record_id).execute()
 
     def download_storage_file(self, storage_path: str) -> bytes:
+        # Check if it's a local file path
+        if storage_path.startswith("local/"):
+            # Local file fallback
+            import os
+            local_filename = storage_path.replace("local/", "")
+            local_path = os.path.join("uploads", local_filename)
+            if os.path.exists(local_path):
+                with open(local_path, "rb") as f:
+                    return f.read()
+            else:
+                raise RuntimeError(f"Local file not found: {local_path}")
+        
+        # Try Supabase storage
         if self._client is None:
-            raise RuntimeError("Supabase client is not configured")
+            raise RuntimeError("Supabase client is not configured and file is not local")
+        
         bucket = settings.supabase_bucket
         res = self._client.storage.from_(bucket).download(storage_path)
         if isinstance(res, bytes):

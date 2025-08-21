@@ -46,7 +46,7 @@ async def upload_file(
         unique_filename = f"{uuid.uuid4()}{file_extension}"
         storage_path = f"uploads/{unique_filename}"
         
-        # Upload to Supabase Storage
+        # Try to upload to Supabase Storage, fallback to local storage
         supabase = SupabaseService()
         
         # Determine content type
@@ -59,12 +59,29 @@ async def upload_file(
         }
         content_type = content_type_map.get(file_extension, 'application/octet-stream')
         
-        # Upload file to Supabase Storage
-        supabase.upload_storage_file(storage_path, contents, content_type)
+        # Try to upload to Supabase Storage
+        try:
+            if supabase._client is not None:
+                supabase.upload_storage_file(storage_path, contents, content_type)
+                file_url = f"/{settings.supabase_bucket}/{storage_path}"
+            else:
+                raise RuntimeError("Supabase not configured")
+        except Exception as e:
+            print(f"Supabase upload failed, using local storage: {e}")
+            # Fallback to local storage
+            upload_dir = "uploads"
+            os.makedirs(upload_dir, exist_ok=True)
+            local_file_path = os.path.join(upload_dir, unique_filename)
+            
+            with open(local_file_path, "wb") as f:
+                f.write(contents)
+            
+            storage_path = f"local/{unique_filename}"
+            file_url = f"/uploads/{unique_filename}"
         
         # Return file information
         return {
-            "file_url": f"/{settings.supabase_bucket}/{storage_path}",
+            "file_url": file_url,
             "file_name": file.filename,
             "file_path": storage_path,
             "storage_path": storage_path,

@@ -29,7 +29,18 @@ const MetadataForm: React.FC<MetadataFormProps> = ({
   hasFiles,
   disabled,
 }) => {
+  // Debug logging
+  console.log('MetadataForm state:', { 
+    machines: machines.length, 
+    metadata, 
+    hasFiles, 
+    isUploading, 
+    disabled,
+    buttonDisabled: !hasFiles || isUploading || disabled || !metadata.machine_id
+  });
+
   const handleChange = (field: string, value: string) => {
+    console.log(`MetadataForm field change: ${field} = ${value}`);
     onChange({ ...metadata, [field]: value });
   };
 
@@ -71,6 +82,15 @@ const MetadataForm: React.FC<MetadataFormProps> = ({
             required
             disabled={disabled || isUploading}
           />
+          {!metadata.sensor_position && (
+            <button
+              type="button"
+              onClick={() => handleChange('sensor_position', 'Drive End')}
+              className="mt-1 text-xs text-blue-500 underline"
+            >
+              Use "Drive End"
+            </button>
+          )}
         </div>
         <div>
           <label className="mb-2 block font-semibold text-text-dark-gray">Axis</label>
@@ -81,6 +101,15 @@ const MetadataForm: React.FC<MetadataFormProps> = ({
             required
             disabled={disabled || isUploading}
           />
+          {!metadata.axis && (
+            <button
+              type="button"
+              onClick={() => handleChange('axis', 'Horizontal')}
+              className="mt-1 text-xs text-blue-500 underline"
+            >
+              Use "Horizontal"
+            </button>
+          )}
         </div>
       </div>
       
@@ -94,9 +123,18 @@ const MetadataForm: React.FC<MetadataFormProps> = ({
           required
           disabled={disabled || isUploading}
         />
+        {!metadata.sampling_rate && (
+          <button
+            type="button"
+            onClick={() => handleChange('sampling_rate', '20000')}
+            className="mt-1 text-xs text-blue-500 underline"
+          >
+            Use "20000"
+          </button>
+        )}
       </div>
 
-      <div className="pt-4">
+      <div className="pt-4 space-y-2">
         <NeumorphicButton
           type="submit"
           className="w-full px-8 py-3"
@@ -111,6 +149,23 @@ const MetadataForm: React.FC<MetadataFormProps> = ({
             'Upload & Process'
           )}
         </NeumorphicButton>
+        
+        {/* Debug info */}
+        <div className="text-xs text-gray-500 p-2 bg-gray-100 rounded">
+          Debug: hasFiles={hasFiles.toString()}, machine_id="{metadata.machine_id}", 
+          machines={machines.length}, disabled={disabled.toString()}
+        </div>
+        
+        {/* Temporary test button */}
+        {!metadata.machine_id && machines.length > 0 && (
+          <button
+            type="button"
+            onClick={() => handleChange('machine_id', machines[0].id)}
+            className="w-full px-4 py-2 bg-blue-500 text-white rounded text-sm"
+          >
+            Quick Select First Machine (Debug)
+          </button>
+        )}
       </div>
     </form>
   );
