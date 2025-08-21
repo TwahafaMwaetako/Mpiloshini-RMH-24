@@ -24,27 +24,50 @@ async def upload_file(
     axis: Optional[str] = Form(None),
     sampling_rate: Optional[str] = Form(None)
 ):
-    """Upload a vibration data file"""
+    """Upload a vibration data file to Supabase Storage"""
     try:
-        # Create uploads directory if it doesn't exist
-        upload_dir = "uploads"
-        os.makedirs(upload_dir, exist_ok=True)
+        # Validate file type
+        allowed_extensions = ['.csv', '.wav', '.tdms', '.mat', '.mdf']
+        file_extension = os.path.splitext(file.filename or "")[1].lower()
         
-        # Generate unique filename
-        file_extension = os.path.splitext(file.filename)[1]
-        unique_filename = f"{uuid.uuid4()}{file_extension}"
-        file_path = os.path.join(upload_dir, unique_filename)
+        if file_extension not in allowed_extensions:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Unsupported file type: {file_extension}. Allowed: {', '.join(allowed_extensions)}"
+            )
         
-        # Save file locally (in production, you'd upload to cloud storage)
+        # Read file contents
         contents = await file.read()
-        with open(file_path, "wb") as f:
-            f.write(contents)
+        
+        if len(contents) == 0:
+            raise HTTPException(status_code=400, detail="File is empty")
+        
+        # Generate unique filename for Supabase Storage
+        unique_filename = f"{uuid.uuid4()}{file_extension}"
+        storage_path = f"uploads/{unique_filename}"
+        
+        # Upload to Supabase Storage
+        supabase = SupabaseService()
+        
+        # Determine content type
+        content_type_map = {
+            '.csv': 'text/csv',
+            '.wav': 'audio/wav',
+            '.mat': 'application/octet-stream',
+            '.tdms': 'application/octet-stream',
+            '.mdf': 'application/octet-stream'
+        }
+        content_type = content_type_map.get(file_extension, 'application/octet-stream')
+        
+        # Upload file to Supabase Storage
+        supabase.upload_storage_file(storage_path, contents, content_type)
         
         # Return file information
         return {
-            "file_url": f"/uploads/{unique_filename}",
+            "file_url": f"/{settings.supabase_bucket}/{storage_path}",
             "file_name": file.filename,
-            "file_path": file_path,
+            "file_path": storage_path,
+            "storage_path": storage_path,
             "size": len(contents),
             "uploaded_at": datetime.utcnow().isoformat(),
             "metadata": {
@@ -54,6 +77,8 @@ async def upload_file(
                 "sampling_rate": sampling_rate
             }
         }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"File upload failed: {str(e)}")
 

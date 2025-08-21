@@ -2,8 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Machine } from "@/entities/all";
 import { Upload, FileText, CheckCircle, AlertCircle, ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
-import { machineAPI, uploadAPI, vibrationAPI } from "@/services/api";
-import { uploadFileToSupabase } from "@/lib/supabase";
+import { machineAPI, uploadAPI, vibrationAPI, diagnosisAPI } from "@/services/api";
 
 import FileUploadZone from "@/components/upload/FileUploadZone";
 import UploadProgress from "@/components/upload/UploadProgress";
@@ -17,6 +16,7 @@ export default function UploadPage() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadStatus, setUploadStatus] = useState<any>({});
   const [isUploading, setIsUploading] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [metadata, setMetadata] = useState({
     machine_id: '',
     sensor_position: '',
@@ -66,31 +66,36 @@ export default function UploadPage() {
       }));
 
       try {
-        // Step 1: Upload the file to Supabase Storage
-        const { path: storagePath, url: fileUrl } = await uploadFileToSupabase(file);
+        // Step 1: Upload file directly to backend (which handles Supabase Storage)
+        const uploadResult = await uploadAPI.uploadFile(file, {
+          machine_id: metadata.machine_id,
+          sensor_position: metadata.sensor_position,
+          axis: metadata.axis,
+          sampling_rate: metadata.sampling_rate
+        });
         
         setUploadStatus((prev: any) => ({
           ...prev,
-          [i]: { ...prev[i], progress: 40 }
+          [i]: { ...prev[i], progress: 50 }
         }));
 
         // Step 2: Create a vibration record in the backend
         const recordData = {
           machine_id: metadata.machine_id,
-          file_path: storagePath,
-          file_url: fileUrl,
-          file_name: file.name,
+          file_path: uploadResult.storage_path || uploadResult.file_path,
+          file_url: uploadResult.file_url,
+          file_name: uploadResult.file_name,
           sensor_position: metadata.sensor_position,
           axis: metadata.axis,
-          sampling_rate: parseInt(metadata.sampling_rate),
+          sampling_rate: parseInt(metadata.sampling_rate) || 1000,
           measurement_date: new Date().toISOString(),
         };
         
-        await uploadAPI.createVibrationRecord(recordData);
+        const recordResult = await uploadAPI.createVibrationRecord(recordData);
         
         setUploadStatus((prev: any) => ({
           ...prev,
-          [i]: { ...prev[i], progress: 80 }
+          [i]: { ...prev[i], progress: 80, record_id: recordResult.record_id }
         }));
 
         setUploadStatus((prev: any) => ({
@@ -99,6 +104,7 @@ export default function UploadPage() {
         }));
 
       } catch (error: any) {
+        console.error(`Upload failed for file ${file.name}:`, error);
         allSuccessful = false;
         setUploadStatus((prev: any) => ({
           ...prev,
@@ -109,15 +115,47 @@ export default function UploadPage() {
     
     setIsUploading(false);
     if (allSuccessful) {
-        showSuccess("All files processed successfully!");
+        showSuccess("All files uploaded and processed successfully!");
     } else {
-        showError("Some files failed to upload.");
+        showError("Some files failed to upload. Check the details above.");
+    }
+  };
+
+  const processAnalysis = async () => {
+    setIsProcessing(true);
+    
+    try {
+      const recordIds = Object.values(uploadStatus)
+        .filter((status: any) => status.record_id)
+        .map((status: any) => status.record_id);
+      
+      if (recordIds.length === 0) {
+        showError("No records found to process");
+        return;
+      }
+      
+      // Process each record
+      for (const recordId of recordIds) {
+        try {
+          await diagnosisAPI.analyze(recordId);
+        } catch (error) {
+          console.error(`Analysis failed for record ${recordId}:`, error);
+        }
+      }
+      
+      showSuccess("Analysis completed! Check the dashboard for results.");
+      
+    } catch (error: any) {
+      showError(`Analysis failed: ${error.message}`);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
   const resetUpload = () => {
     setSelectedFiles([]);
     setUploadStatus({});
+    setIsProcessing(false);
     setMetadata({
       machine_id: '',
       sensor_position: '',
@@ -161,9 +199,19 @@ export default function UploadPage() {
               </div>
               
               {allCompleted && (
-                <div className="rounded-xl p-4 text-center shadow-neumorphic-inset">
-                  <CheckCircle className="mx-auto mb-2 h-8 w-8 text-green-600" />
-                  <p className="font-medium text-green-600">All files uploaded successfully!</p>
+                <div className="space-y-4">
+                  <div className="rounded-xl p-4 text-center shadow-neumorphic-inset">
+                    <CheckCircle className="mx-auto mb-2 h-8 w-8 text-green-600" />
+                    <p className="font-medium text-green-600">All files uploaded successfully!</p>
+                  </div>
+                  
+                  <NeumorphicButton
+                    onClick={processAnalysis}
+                    className="w-full"
+                    disabled={isProcessing}
+                  >
+                    {isProcessing ? 'Processing Analysis...' : 'Process & Analyze Files'}
+                  </NeumorphicButton>
                 </div>
               )}
               

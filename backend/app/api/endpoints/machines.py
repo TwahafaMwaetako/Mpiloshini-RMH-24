@@ -36,6 +36,60 @@ class Machine(MachineBase):
 # In-memory storage for now (replace with database later)
 machines_db = {}
 
+# Initialize with some default machines for testing
+def initialize_default_machines():
+    if not machines_db:  # Only initialize if empty
+        default_machines = [
+            {
+                "name": "Motor Pump 001",
+                "type": "Centrifugal Pump",
+                "manufacturer": "Grundfos",
+                "model": "CR 32-4",
+                "location": "Plant A - Section 1",
+                "status": "operational",
+                "rpm_nominal": 1800,
+                "power_kw": 15.0,
+                "description": "Main cooling water pump"
+            },
+            {
+                "name": "Compressor Unit 002", 
+                "type": "Rotary Compressor",
+                "manufacturer": "Atlas Copco",
+                "model": "GA 22",
+                "location": "Plant A - Section 2", 
+                "status": "operational",
+                "rpm_nominal": 3600,
+                "power_kw": 22.0,
+                "description": "Air compressor for pneumatic systems"
+            },
+            {
+                "name": "Fan Motor 003",
+                "type": "Axial Fan",
+                "manufacturer": "ABB",
+                "model": "M3BP 160",
+                "location": "Plant B - Ventilation",
+                "status": "operational", 
+                "rpm_nominal": 1450,
+                "power_kw": 7.5,
+                "description": "Ventilation system fan"
+            }
+        ]
+        
+        for machine_data in default_machines:
+            machine_id = str(uuid.uuid4())
+            now = datetime.utcnow()
+            
+            machine = Machine(
+                id=machine_id,
+                created_at=now,
+                updated_at=now,
+                **machine_data
+            )
+            machines_db[machine_id] = machine
+
+# Initialize default machines
+initialize_default_machines()
+
 @router.get("/machines", response_model=List[Machine])
 async def get_machines():
     """Get all machines"""
