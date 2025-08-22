@@ -18,6 +18,7 @@ import {
 import FileUploadZone from "@/components/upload/FileUploadZone";
 import UploadProgress from "@/components/upload/UploadProgress";
 import MetadataForm from "@/components/upload/MetadataForm";
+import AnalysisResultsDisplay from "@/components/analysis/AnalysisResultsDisplay";
 import NeumorphicButton from "@/components/NeumorphicButton";
 import NeumorphicCard from "@/components/NeumorphicCard";
 import { showSuccess, showError } from "@/utils/toast";
@@ -28,6 +29,8 @@ export default function UploadPage() {
   const [uploadStatus, setUploadStatus] = useState<any>({});
   const [isUploading, setIsUploading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [analysisResults, setAnalysisResults] = useState<any[]>([]);
+  const [showResults, setShowResults] = useState(false);
   const [metadata, setMetadata] = useState({
     machine_id: "",
     sensor_position: "Drive End",
@@ -235,29 +238,110 @@ export default function UploadPage() {
     }
   };
 
-  const processAnalysis = async () => {
+  const processAnalysis = async (retryFailedOnly: boolean = false) => {
     setIsProcessing(true);
+    
+    if (!retryFailedOnly) {
+      setAnalysisResults([]);
+    }
 
     try {
-      const recordIds = Object.values(uploadStatus)
-        .filter((status: any) => status.record_id)
-        .map((status: any) => status.record_id);
+      let recordIds: string[];
+      
+      if (retryFailedOnly) {
+        // Only retry failed analyses
+        recordIds = analysisResults
+          .filter((result: any) => result.status === "error")
+          .map((result: any) => result.record_id);
+      } else {
+        // Process all records
+        recordIds = Object.values(uploadStatus)
+          .filter((status: any) => status.record_id)
+          .map((status: any) => status.record_id);
+      }
 
       if (recordIds.length === 0) {
-        showError("No records found to process");
+        showError(retryFailedOnly ? "No failed records to retry" : "No records found to process");
         return;
       }
 
-      // Process each record
+      const results = retryFailedOnly ? [...analysisResults] : [];
+
+      // Process each record and collect results
       for (const recordId of recordIds) {
         try {
-          await diagnosisAPI.analyze(recordId);
+          console.log(`Analyzing record: ${recordId}`);
+          const analysisResult = await diagnosisAPI.analyze(recordId);
+          console.log(`Analysis result for ${recordId}:`, analysisResult);
+          
+          if (retryFailedOnly) {
+            // Replace the failed result with the new one
+            const index = results.findIndex((r: any) => r.record_id === recordId);
+            if (index !== -1) {
+              results[index] = analysisResult;
+            } else {
+              results.push(analysisResult);
+            }
+          } else {
+            results.push(analysisResult);
+          }
         } catch (error) {
           console.error(`Analysis failed for record ${recordId}:`, error);
+          
+          let errorMessage = "Analysis failed";
+          let errorType = "unknown";
+          
+          if (error instanceof Error) {
+            errorMessage = error.message;
+            if (error.message.includes("fetch")) {
+              errorType = "network";
+              errorMessage = "Network connection failed. Please check your internet connection and try again.";
+            } else if (error.message.includes("timeout")) {
+              errorType = "timeout";
+              errorMessage = "Analysis timed out. The file may be too large or the server is busy.";
+            } else if (error.message.includes("400")) {
+              errorType = "validation";
+              errorMessage = "Invalid file format or corrupted data. Please check your file.";
+            } else if (error.message.includes("500")) {
+              errorType = "server";
+              errorMessage = "Server error occurred during analysis. Please try again later.";
+            }
+          }
+          
+          const errorResult = {
+            record_id: recordId,
+            status: "error",
+            error_message: errorMessage,
+            error_type: errorType,
+            analysis_timestamp: new Date().toISOString()
+          };
+          
+          if (retryFailedOnly) {
+            const index = results.findIndex((r: any) => r.record_id === recordId);
+            if (index !== -1) {
+              results[index] = errorResult;
+            } else {
+              results.push(errorResult);
+            }
+          } else {
+            results.push(errorResult);
+          }
         }
       }
 
-      showSuccess("Analysis completed! Check the dashboard for results.");
+      setAnalysisResults(results);
+      setShowResults(true);
+      
+      const successCount = results.filter((r: any) => r.status !== "error").length;
+      const errorCount = results.filter((r: any) => r.status === "error").length;
+      
+      if (errorCount === 0) {
+        showSuccess("Analysis completed successfully! Results are displayed below.");
+      } else if (successCount > 0) {
+        showError(`Analysis completed with ${errorCount} errors. ${successCount} files processed successfully.`);
+      } else {
+        showError("All analyses failed. Please check the error messages below.");
+      }
     } catch (error: any) {
       showError(`Analysis failed: ${error.message}`);
     } finally {
@@ -269,6 +353,8 @@ export default function UploadPage() {
     setSelectedFiles([]);
     setUploadStatus({});
     setIsProcessing(false);
+    setAnalysisResults([]);
+    setShowResults(false);
     setMetadata({
       machine_id: machines.length > 0 ? machines[0].id : "",
       sensor_position: "Drive End",
@@ -338,9 +424,14 @@ export default function UploadPage() {
                     className="w-full"
                     disabled={isProcessing}
                   >
-                    {isProcessing
-                      ? "Processing Analysis..."
-                      : "Process & Analyze Files"}
+                    {isProcessing ? (
+                      <div className="flex items-center gap-2">
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                        Processing Analysis...
+                      </div>
+                    ) : (
+                      "Process & Analyze Files"
+                    )}
                   </NeumorphicButton>
                 </div>
               )}
@@ -378,6 +469,30 @@ export default function UploadPage() {
           />
         </NeumorphicCard>
       </main>
+
+      {/* Analysis Results Section */}
+      {/* Processing Indicator */}
+      {isProcessing && showResults && (
+        <div className="mt-8">
+          <NeumorphicCard className="p-6 text-center">
+            <div className="flex items-center justify-center gap-3">
+              <div className="h-6 w-6 animate-spin rounded-full border-2 border-blue-500 border-t-transparent"></div>
+              <span className="text-lg font-medium text-text-dark-gray">
+                Processing analysis... Please wait
+              </span>
+            </div>
+          </NeumorphicCard>
+        </div>
+      )}
+
+      {/* Analysis Results Section */}
+      {showResults && analysisResults.length > 0 && (
+        <AnalysisResultsDisplay 
+          results={analysisResults} 
+          onRetryFailed={() => processAnalysis(true)}
+          isProcessing={isProcessing}
+        />
+      )}
     </div>
   );
 }
