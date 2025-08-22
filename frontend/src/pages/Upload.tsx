@@ -36,8 +36,26 @@ export default function UploadPage() {
   });
 
   useEffect(() => {
+    // Test backend connectivity first
+    testBackendConnection();
     fetchMachines();
   }, []);
+
+  const testBackendConnection = async () => {
+    try {
+      const response = await fetch("http://localhost:8000/health");
+      if (response.ok) {
+        console.log("✅ Backend connection successful");
+      } else {
+        console.error("❌ Backend health check failed:", response.status);
+      }
+    } catch (error) {
+      console.error("❌ Cannot connect to backend:", error);
+      showError(
+        "Cannot connect to backend. Please ensure the backend is running on http://localhost:8000"
+      );
+    }
+  };
 
   const fetchMachines = async () => {
     try {

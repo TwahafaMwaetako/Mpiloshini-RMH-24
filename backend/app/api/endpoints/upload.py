@@ -131,6 +131,9 @@ class VibrationRecordRequest(BaseModel):
 async def create_vibration_record(payload: VibrationRecordRequest):
     """Create a vibration record in Supabase database"""
     try:
+        print(f"Creating vibration record for: {payload.file_name}")
+        print(f"Payload: {payload.dict()}")
+        
         supabase = SupabaseService()
         
         # First, we need to find or create a sensor for this measurement
@@ -146,12 +149,14 @@ async def create_vibration_record(payload: VibrationRecordRequest):
                 axis=payload.axis,
                 sampling_rate=float(payload.sampling_rate)
             )
+            print(f"Created sensor: {sensor_id}")
         except Exception as e:
             # If sensor creation fails, we might need to use an existing one
             # or handle this differently based on your database schema
             print(f"Sensor creation failed: {e}")
             # For MVP, create a simple UUID as sensor_id
             sensor_id = str(uuid.uuid4())
+            print(f"Using fallback sensor ID: {sensor_id}")
         
         # Create the vibration record
         record_data = {
@@ -162,7 +167,11 @@ async def create_vibration_record(payload: VibrationRecordRequest):
             "file_name": payload.file_name,
         }
         
+        print(f"Creating record with data: {record_data}")
+        
         result = supabase.create_vibration_record_from_dict(record_data)
+        
+        print(f"Record created: {result}")
         
         return {
             "success": True,
@@ -172,4 +181,5 @@ async def create_vibration_record(payload: VibrationRecordRequest):
         }
         
     except Exception as e:
+        print(f"Failed to create vibration record: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to create vibration record: {str(e)}")

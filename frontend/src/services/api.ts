@@ -74,26 +74,53 @@ export const vibrationAPI = {
 // File Upload API
 export const uploadAPI = {
   uploadFile: async (file: File, metadata?: any) => {
+    console.log('uploadFile called with:', { fileName: file.name, fileSize: file.size, metadata });
+    console.log('API_URL:', API_URL);
+    
     const formData = new FormData();
     formData.append('file', file);
     
     if (metadata) {
       Object.keys(metadata).forEach(key => {
+        console.log(`Adding metadata: ${key} = ${metadata[key]}`);
         formData.append(key, metadata[key]);
       });
     }
 
-    const response = await fetch(`${API_URL}/upload/file`, {
-      method: 'POST',
-      body: formData,
-    });
+    const uploadUrl = `${API_URL}/upload/file`;
+    console.log('Uploading to:', uploadUrl);
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.detail || `Upload Error: ${response.status}`);
+    try {
+      const response = await fetch(uploadUrl, {
+        method: 'POST',
+        body: formData,
+      });
+
+      console.log('Upload response status:', response.status);
+      console.log('Upload response ok:', response.ok);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Upload error response:', errorText);
+        
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { detail: errorText };
+        }
+        
+        throw new Error(errorData.detail || `Upload Error: ${response.status} - ${errorText}`);
+      }
+
+      const result = await response.json();
+      console.log('Upload success result:', result);
+      return result;
+      
+    } catch (error) {
+      console.error('Upload fetch error:', error);
+      throw error;
     }
-
-    return response.json();
   },
   
   createVibrationRecord: async (recordData: any) => {
