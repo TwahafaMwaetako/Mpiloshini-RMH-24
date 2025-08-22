@@ -5,7 +5,7 @@ services:
     build: 
       context: ./backend
       dockerfile: Dockerfile
-    container_name: mpiloshini-backend
+    container_name: mpiloshini-backend-prod
     env_file:
       - ./backend/.env
     environment:
@@ -13,9 +13,7 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./backend:/app
       - backend_uploads:/app/uploads
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -30,9 +28,9 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: mpiloshini-frontend
+    container_name: mpiloshini-frontend-prod
     ports:
-      - "3000:80"
+      - "80:80"
     depends_on:
       - backend
     healthcheck:
