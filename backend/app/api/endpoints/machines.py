@@ -41,6 +41,7 @@ def initialize_default_machines():
     if not machines_db:  # Only initialize if empty
         default_machines = [
             {
+                "id": str(uuid.uuid4()),
                 "name": "Motor Pump 001",
                 "type": "Centrifugal Pump",
                 "manufacturer": "Grundfos",
@@ -49,9 +50,12 @@ def initialize_default_machines():
                 "status": "operational",
                 "rpm_nominal": 1800,
                 "power_kw": 15.0,
-                "description": "Main cooling water pump"
+                "description": "Main cooling water pump",
+                "created_at": datetime.utcnow().isoformat(),
+                "updated_at": datetime.utcnow().isoformat()
             },
             {
+                "id": str(uuid.uuid4()),
                 "name": "Compressor Unit 002", 
                 "type": "Rotary Compressor",
                 "manufacturer": "Atlas Copco",
@@ -60,9 +64,12 @@ def initialize_default_machines():
                 "status": "operational",
                 "rpm_nominal": 3600,
                 "power_kw": 22.0,
-                "description": "Air compressor for pneumatic systems"
+                "description": "Air compressor for pneumatic systems",
+                "created_at": datetime.utcnow().isoformat(),
+                "updated_at": datetime.utcnow().isoformat()
             },
             {
+                "id": str(uuid.uuid4()),
                 "name": "Fan Motor 003",
                 "type": "Axial Fan",
                 "manufacturer": "ABB",
@@ -71,54 +78,47 @@ def initialize_default_machines():
                 "status": "operational", 
                 "rpm_nominal": 1450,
                 "power_kw": 7.5,
-                "description": "Ventilation system fan"
+                "description": "Ventilation system fan",
+                "created_at": datetime.utcnow().isoformat(),
+                "updated_at": datetime.utcnow().isoformat()
             }
         ]
         
         for machine_data in default_machines:
-            machine_id = str(uuid.uuid4())
-            now = datetime.utcnow()
-            
-            machine = Machine(
-                id=machine_id,
-                created_at=now,
-                updated_at=now,
-                **machine_data
-            )
-            machines_db[machine_id] = machine
+            machines_db[machine_data["id"]] = machine_data
 
 # Initialize default machines
 initialize_default_machines()
 
-@router.get("/machines", response_model=List[Machine])
+@router.get("/machines")
 async def get_machines():
     """Get all machines"""
     return list(machines_db.values())
 
-@router.get("/machines/{machine_id}", response_model=Machine)
+@router.get("/machines/{machine_id}")
 async def get_machine(machine_id: str):
     """Get a specific machine by ID"""
     if machine_id not in machines_db:
         raise HTTPException(status_code=404, detail="Machine not found")
     return machines_db[machine_id]
 
-@router.post("/machines", response_model=Machine)
+@router.post("/machines")
 async def create_machine(machine: MachineCreate):
     """Create a new machine"""
     machine_id = str(uuid.uuid4())
-    now = datetime.utcnow()
+    now = datetime.utcnow().isoformat()
     
-    new_machine = Machine(
-        id=machine_id,
-        created_at=now,
-        updated_at=now,
+    new_machine = {
+        "id": machine_id,
+        "created_at": now,
+        "updated_at": now,
         **machine.dict()
-    )
+    }
     
     machines_db[machine_id] = new_machine
     return new_machine
 
-@router.put("/machines/{machine_id}", response_model=Machine)
+@router.put("/machines/{machine_id}")
 async def update_machine(machine_id: str, machine: MachineUpdate):
     """Update an existing machine"""
     if machine_id not in machines_db:
@@ -128,9 +128,9 @@ async def update_machine(machine_id: str, machine: MachineUpdate):
     update_data = machine.dict(exclude_unset=True)
     
     for field, value in update_data.items():
-        setattr(existing_machine, field, value)
+        existing_machine[field] = value
     
-    existing_machine.updated_at = datetime.utcnow()
+    existing_machine["updated_at"] = datetime.utcnow().isoformat()
     machines_db[machine_id] = existing_machine
     
     return existing_machine
@@ -163,28 +163,28 @@ class VibrationRecord(VibrationRecordBase):
     id: str
     created_at: datetime
 
-@router.get("/vibrations", response_model=List[VibrationRecord])
+@router.get("/vibrations")
 async def get_vibration_records():
     """Get all vibration records"""
     return list(vibration_records_db.values())
 
-@router.get("/vibrations/machine/{machine_id}", response_model=List[VibrationRecord])
+@router.get("/vibrations/machine/{machine_id}")
 async def get_vibration_records_by_machine(machine_id: str):
     """Get vibration records for a specific machine"""
-    records = [r for r in vibration_records_db.values() if r.machine_id == machine_id]
+    records = [r for r in vibration_records_db.values() if r.get("machine_id") == machine_id]
     return records
 
-@router.post("/vibrations", response_model=VibrationRecord)
+@router.post("/vibrations")
 async def create_vibration_record(record: VibrationRecordCreate):
     """Create a new vibration record"""
     record_id = str(uuid.uuid4())
-    now = datetime.utcnow()
+    now = datetime.utcnow().isoformat()
     
-    new_record = VibrationRecord(
-        id=record_id,
-        created_at=now,
+    new_record = {
+        "id": record_id,
+        "created_at": now,
         **record.dict()
-    )
+    }
     
     vibration_records_db[record_id] = new_record
     return new_record
