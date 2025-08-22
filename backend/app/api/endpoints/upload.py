@@ -173,6 +173,30 @@ async def create_vibration_record(payload: VibrationRecordRequest):
         
         print(f"Record created: {result}")
         
+        # Also store in the in-memory database for the /records/vibrations endpoint
+        try:
+            from .machines import vibration_records_db
+            
+            record_id = result.get("id") or str(uuid.uuid4())
+            in_memory_record = {
+                "id": record_id,
+                "machine_id": payload.machine_id,
+                "file_url": payload.file_url,
+                "file_name": payload.file_name,
+                "sensor_position": payload.sensor_position,
+                "axis": payload.axis,
+                "sampling_rate": payload.sampling_rate,
+                "measurement_date": payload.measurement_date,
+                "created_at": datetime.utcnow().isoformat(),
+                "processed": False
+            }
+            
+            vibration_records_db[record_id] = in_memory_record
+            print(f"Also stored in in-memory database: {record_id}")
+            
+        except Exception as e:
+            print(f"Failed to store in in-memory database: {e}")
+        
         return {
             "success": True,
             "record_id": result.get("id"),

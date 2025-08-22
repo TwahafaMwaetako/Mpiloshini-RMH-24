@@ -83,6 +83,15 @@ class VibrationAnalysisService:
             # Mark record as processed
             self._supabase.mark_record_processed(record_id)
             
+            # Also mark as processed in the in-memory database
+            try:
+                from ..api.endpoints.machines import vibration_records_db
+                if record_id in vibration_records_db:
+                    vibration_records_db[record_id]["processed"] = True
+                    print(f"Marked record {record_id} as processed in in-memory database")
+            except Exception as e:
+                print(f"Failed to update in-memory database: {e}")
+            
             return result
             
         except Exception as e:

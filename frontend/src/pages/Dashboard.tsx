@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Machine, FaultDetection, VibrationRecord, Alert } from "@/entities/all";
 import { Activity, Settings, Zap, AlertTriangle, TrendingUp, Upload } from "lucide-react";
 import { Link } from "react-router-dom";
+import { machineAPI, vibrationAPI } from "@/services/api";
 
 import StatsCard from "@/components/dashboard/StatsCard";
 import AlertCard from "@/components/dashboard/AlertCard";
@@ -16,11 +17,44 @@ export default function Index() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // TODO: Fetch dashboard data from your backend API
-    // e.g., fetchMachines().then(setMachines);
-    // e.g., fetchAlerts().then(setAlerts);
-    setLoading(false);
+    fetchDashboardData();
   }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch machines
+      const machinesData = await machineAPI.getAll();
+      console.log("Fetched machines:", machinesData);
+      setMachines(machinesData);
+
+      // Fetch vibration records
+      const recordsData = await vibrationAPI.getAll();
+      console.log("Fetched records for dashboard:", recordsData);
+      console.log("Number of records:", recordsData.length);
+      setRecords(recordsData);
+
+      // Generate mock alerts based on recent data
+      const mockAlerts: Alert[] = recordsData
+        .filter((record: any) => record.processed)
+        .slice(0, 3)
+        .map((record: any, index: number) => ({
+          id: `alert-${index}`,
+          machine: machinesData.find((m: Machine) => m.id === record.machine_id)?.name || "Unknown Machine",
+          message: `Vibration analysis completed for ${record.file_name}`,
+          severity: "info" as const,
+          timestamp: record.created_at || new Date().toISOString()
+        }));
+      
+      setAlerts(mockAlerts);
+
+    } catch (error) {
+      console.error("Failed to fetch dashboard data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const activeMachines = machines.filter(m => m.status === 'active').length;
   const criticalAlerts = detections.filter(d => d.severity_score > 80).length;

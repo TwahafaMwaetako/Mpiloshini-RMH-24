@@ -166,6 +166,9 @@ class VibrationRecord(VibrationRecordBase):
 @router.get("/vibrations")
 async def get_vibration_records():
     """Get all vibration records"""
+    print(f"Fetching vibration records. Database contains {len(vibration_records_db)} records:")
+    for record_id, record in vibration_records_db.items():
+        print(f"  - {record_id}: {record.get('file_name', 'Unknown')} (processed: {record.get('processed', False)})")
     return list(vibration_records_db.values())
 
 @router.get("/vibrations/machine/{machine_id}")

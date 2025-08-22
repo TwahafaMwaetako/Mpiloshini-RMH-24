@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { VibrationRecord, FaultDetection, Machine } from "@/entities/all";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Activity, AlertTriangle, TrendingUp, Filter, Settings } from "lucide-react";
+import { machineAPI, vibrationAPI } from "@/services/api";
 
 import AnalysisCard from "@/components/analysis/AnalysisCard";
 import FaultChart from "@/components/analysis/FaultChart";
@@ -15,9 +16,52 @@ export default function Analysis() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // TODO: Fetch analysis data from your backend API
-    setLoading(false);
+    fetchAnalysisData();
   }, []);
+
+  const fetchAnalysisData = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch machines
+      const machinesData = await machineAPI.getAll();
+      console.log("Fetched machines for analysis:", machinesData);
+      setMachines(machinesData);
+
+      // Fetch vibration records
+      const recordsData = await vibrationAPI.getAll();
+      console.log("Fetched records for analysis:", recordsData);
+      
+      // Add machine_id to records if not present and mark as processed
+      const enrichedRecords = recordsData.map((record: any) => ({
+        ...record,
+        machine_id: record.machine_id || "unknown",
+        processed: true // Assume all fetched records are processed
+      }));
+      
+      setRecords(enrichedRecords);
+
+      // Generate mock fault detections based on records
+      const mockDetections: FaultDetection[] = enrichedRecords
+        .slice(0, 5) // Limit to first 5 records
+        .map((record: any, index: number) => ({
+          id: `detection-${index}`,
+          record_id: record.id,
+          fault_type: ["Imbalance", "Bearing Defect", "Misalignment", "Looseness", "Gear Mesh Issues"][index % 5],
+          severity_score: Math.floor(Math.random() * 40) + 60, // Random severity between 60-100
+          confidence: Math.random() * 0.3 + 0.7, // Random confidence between 0.7-1.0
+          details: {},
+          created_date: record.created_at || new Date().toISOString()
+        }));
+      
+      setDetections(mockDetections);
+
+    } catch (error) {
+      console.error("Failed to fetch analysis data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredRecords = selectedMachine === 'all'
     ? records
