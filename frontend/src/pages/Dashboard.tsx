@@ -33,6 +33,11 @@ export default function Index() {
       const recordsData = await vibrationAPI.getAll();
       console.log("Fetched records for dashboard:", recordsData);
       console.log("Number of records:", recordsData.length);
+      
+      if (recordsData.length > 0) {
+        console.log("Sample record:", recordsData[0]);
+      }
+      
       setRecords(recordsData);
 
       // Generate mock alerts based on recent data
@@ -86,12 +91,18 @@ export default function Index() {
           <h1 className="text-3xl font-semibold text-text-dark-gray">Vibration Analysis Dashboard</h1>
           <p className="mt-1 text-text-body">Monitor rotating machinery health and detect potential faults</p>
         </div>
-        <Link to="/upload">
-          <NeumorphicButton>
-            <Upload className="mr-2 h-4 w-4" />
-            Upload Data
+        <div className="flex gap-3">
+          <NeumorphicButton onClick={fetchDashboardData} disabled={loading}>
+            <Activity className="mr-2 h-4 w-4" />
+            {loading ? "Refreshing..." : "Refresh"}
           </NeumorphicButton>
-        </Link>
+          <Link to="/upload">
+            <NeumorphicButton>
+              <Upload className="mr-2 h-4 w-4" />
+              Upload Data
+            </NeumorphicButton>
+          </Link>
+        </div>
       </header>
 
       <main className="space-y-8">

@@ -7,6 +7,7 @@ import { machineAPI, vibrationAPI } from "@/services/api";
 import AnalysisCard from "@/components/analysis/AnalysisCard";
 import FaultChart from "@/components/analysis/FaultChart";
 import NeumorphicCard from "@/components/NeumorphicCard";
+import NeumorphicButton from "@/components/NeumorphicButton";
 
 export default function Analysis() {
   const [records, setRecords] = useState<(VibrationRecord & { machine_id: string })[]>([]);
@@ -104,22 +105,28 @@ export default function Analysis() {
           <h1 className="text-3xl font-semibold text-text-dark-gray">Vibration Analysis</h1>
           <p className="mt-1 text-text-body">Review fault detection results and machine health trends</p>
         </div>
-        <Select value={selectedMachine} onValueChange={setSelectedMachine}>
-          <SelectTrigger className="w-full rounded-lg border-none bg-soft-light-gray p-3 text-text-dark-gray shadow-neumorphic-inset focus:outline-none focus:ring-2 focus:ring-accent-subtle md:w-56">
-            <div className="flex items-center gap-2">
-              <Filter className="h-4 w-4" />
-              <SelectValue />
-            </div>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Machines</SelectItem>
-            {machines.map((machine) => (
-              <SelectItem key={machine.id} value={machine.id}>
-                {machine.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex gap-3">
+          <NeumorphicButton onClick={fetchAnalysisData} disabled={loading}>
+            <Activity className="mr-2 h-4 w-4" />
+            {loading ? "Refreshing..." : "Refresh"}
+          </NeumorphicButton>
+          <Select value={selectedMachine} onValueChange={setSelectedMachine}>
+            <SelectTrigger className="w-full rounded-lg border-none bg-soft-light-gray p-3 text-text-dark-gray shadow-neumorphic-inset focus:outline-none focus:ring-2 focus:ring-accent-subtle md:w-56">
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4" />
+                <SelectValue />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Machines</SelectItem>
+              {machines.map((machine) => (
+                <SelectItem key={machine.id} value={machine.id}>
+                  {machine.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
