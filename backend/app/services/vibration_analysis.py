@@ -16,31 +16,47 @@ class VibrationAnalysisService:
     def process_record(self, record_id: str) -> dict:
         """Process a vibration record and perform analysis"""
         try:
+            print(f"Processing record: {record_id}")
+            
             # Get the vibration record from database
             record = self._supabase.get_vibration_record(record_id)
             if not record:
                 raise ValueError(f"Vibration record {record_id} not found")
+            
+            print(f"Found record: {record}")
             
             # Download the file from Supabase Storage
             file_path = record.get('file_path') or record.get('storage_path')
             if not file_path:
                 raise ValueError("No file path found in vibration record")
             
+            print(f"Downloading file from: {file_path}")
+            
             file_bytes = self._supabase.download_storage_file(file_path)
+            
+            print(f"Downloaded {len(file_bytes)} bytes")
             
             # Extract filename from path
             filename = file_path.split('/')[-1]
+            
+            print(f"Processing file: {filename}")
             
             # Load and process the signal
             signal_data, sampling_rate, load_metadata = self._loader.load_from_bytes(
                 file_bytes, filename
             )
             
+            print(f"Loaded signal: {len(signal_data)} samples at {sampling_rate} Hz")
+            
             # Process the signal and extract features
             analysis_result = self._processor.process_signal(signal_data, sampling_rate)
             
+            print(f"Analysis result keys: {list(analysis_result.keys())}")
+            
             # Perform fault detection
             fault_analysis = self._detect_faults(analysis_result)
+            
+            print(f"Fault analysis: {fault_analysis}")
             
             # Calculate overall health score
             health_score = self._calculate_health_score(fault_analysis)

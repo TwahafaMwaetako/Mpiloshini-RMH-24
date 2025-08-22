@@ -26,9 +26,14 @@ async def upload_file(
 ):
     """Upload a vibration data file to Supabase Storage"""
     try:
+        print(f"Uploading file: {file.filename}")
+        print(f"Metadata: machine_id={machine_id}, sensor_position={sensor_position}, axis={axis}, sampling_rate={sampling_rate}")
+        
         # Validate file type
         allowed_extensions = ['.csv', '.wav', '.tdms', '.mat', '.mdf']
         file_extension = os.path.splitext(file.filename or "")[1].lower()
+        
+        print(f"File extension: {file_extension}")
         
         if file_extension not in allowed_extensions:
             raise HTTPException(
@@ -38,6 +43,8 @@ async def upload_file(
         
         # Read file contents
         contents = await file.read()
+        
+        print(f"File size: {len(contents)} bytes")
         
         if len(contents) == 0:
             raise HTTPException(status_code=400, detail="File is empty")
