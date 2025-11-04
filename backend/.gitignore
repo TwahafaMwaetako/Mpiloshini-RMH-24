@@ -3,3 +3,5 @@ uploads/
 *.csv
 *.txt
 *.dat
+
+.env
