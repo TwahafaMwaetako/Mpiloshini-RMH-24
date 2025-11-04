@@ -16,7 +16,7 @@ __pycache__/
 .pytest_cache/
 .venv/
 venv/
-.env
+
 
 # OS/IDE
 .DS_Store
@@ -30,3 +30,5 @@ coverage/
 
 # Local data
 *.sqlite3
+
+.env
