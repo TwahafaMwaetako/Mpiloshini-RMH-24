@@ -54,7 +54,17 @@ export const machineAPI = {
 
 // Vibration Records API endpoints
 export const vibrationAPI = {
-  getAll: () => apiCall<VibrationRecord[]>('/records/vibrations'),
+  getAll: async () => {
+    console.log('🔍 Fetching all vibration records...');
+    try {
+      const result = await apiCall<VibrationRecord[]>('/records/vibrations');
+      console.log('✅ Successfully fetched vibration records:', result);
+      return result;
+    } catch (error) {
+      console.error('❌ Failed to fetch vibration records:', error);
+      throw error;
+    }
+  },
   
   getByMachineId: (machineId: string) => 
     apiCall<VibrationRecord[]>(`/records/vibrations/machine/${machineId}`),
@@ -69,6 +79,12 @@ export const vibrationAPI = {
     apiCall<void>(`/records/vibrations/${id}`, {
       method: 'DELETE',
     }),
+
+  // Debug endpoint to check storage systems
+  debugStorage: () => apiCall<any>('/records/debug/storage'),
+  
+  // Sync storage systems
+  syncStorage: () => apiCall<any>('/records/debug/sync-storage', { method: 'POST' }),
 };
 
 // File Upload API

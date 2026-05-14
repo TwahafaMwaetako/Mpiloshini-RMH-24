@@ -61,6 +61,31 @@ export default function Index() {
     }
   };
 
+  const debugStorage = async () => {
+    try {
+      const debugData = await vibrationAPI.debugStorage();
+      console.log("🔍 Debug Storage Data:", debugData);
+      alert(`Storage Debug Info:\n\nIn-Memory DB: ${debugData.in_memory_db.vibration_records} records\nSupabase Local: ${debugData.supabase_local.vibration_records} records\n\nCheck console for detailed info.`);
+    } catch (error) {
+      console.error("Failed to fetch debug data:", error);
+      alert("Failed to fetch debug data. Check console for details.");
+    }
+  };
+
+  const syncStorage = async () => {
+    try {
+      const syncResult = await vibrationAPI.syncStorage();
+      console.log("🔄 Sync Result:", syncResult);
+      alert(`${syncResult.message}\nTotal records now: ${syncResult.total_records_now}`);
+      
+      // Refresh data after sync
+      await fetchDashboardData();
+    } catch (error) {
+      console.error("Failed to sync storage:", error);
+      alert("Failed to sync storage. Check console for details.");
+    }
+  };
+
   const activeMachines = machines.filter(m => m.status === 'active').length;
   const criticalAlerts = detections.filter(d => d.severity_score > 80).length;
   const totalRecords = records.length;
@@ -95,6 +120,14 @@ export default function Index() {
           <NeumorphicButton onClick={fetchDashboardData} disabled={loading}>
             <Activity className="mr-2 h-4 w-4" />
             {loading ? "Refreshing..." : "Refresh"}
+          </NeumorphicButton>
+          <NeumorphicButton onClick={debugStorage}>
+            <Settings className="mr-2 h-4 w-4" />
+            Debug Storage
+          </NeumorphicButton>
+          <NeumorphicButton onClick={syncStorage}>
+            <Activity className="mr-2 h-4 w-4" />
+            Sync Storage
           </NeumorphicButton>
           <Link to="/upload">
             <NeumorphicButton>

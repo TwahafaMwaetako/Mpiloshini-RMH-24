@@ -165,11 +165,53 @@ class VibrationRecord(VibrationRecordBase):
 
 @router.get("/vibrations")
 async def get_vibration_records():
-    """Get all vibration records"""
-    print(f"Fetching vibration records. Database contains {len(vibration_records_db)} records:")
+    """Get all vibration records from both in-memory and Supabase storage"""
+    from ...services.supabase_service import SupabaseService
+    
+    print(f"Fetching vibration records. In-memory database contains {len(vibration_records_db)} records:")
     for record_id, record in vibration_records_db.items():
         print(f"  - {record_id}: {record.get('file_name', 'Unknown')} (processed: {record.get('processed', False)})")
-    return list(vibration_records_db.values())
+    
+    # Also get records from Supabase service local storage
+    supabase_service = SupabaseService()
+    supabase_records = []
+    
+    try:
+        # Access the local records from SupabaseService
+        local_records = getattr(supabase_service, '_local_records', {})
+        print(f"Supabase local storage contains {len(local_records)} records:")
+        
+        for record_id, record in local_records.items():
+            print(f"  - {record_id}: {record.get('file_name', 'Unknown')} (status: {record.get('status', 'unknown')})")
+            
+            # Convert Supabase record format to match the expected format
+            converted_record = {
+                "id": record_id,
+                "machine_id": record.get("sensor_id", "unknown"),  # Use sensor_id as machine_id for now
+                "file_url": f"/uploads/{record.get('file_path', '').split('/')[-1]}" if record.get('file_path') else "",
+                "file_name": record.get("file_name", "Unknown"),
+                "sensor_position": "Drive End",  # Default value
+                "axis": "Horizontal",  # Default value
+                "sampling_rate": 12000,  # Default value
+                "measurement_date": record.get("timestamp", record.get("created_at", "")),
+                "created_at": record.get("created_at", record.get("timestamp", "")),
+                "processed": record.get("status") == "processed"
+            }
+            supabase_records.append(converted_record)
+    except Exception as e:
+        print(f"Error accessing Supabase local records: {e}")
+    
+    # Combine records from both sources, avoiding duplicates
+    all_records = list(vibration_records_db.values())
+    
+    # Add Supabase records that aren't already in the in-memory database
+    existing_ids = set(vibration_records_db.keys())
+    for record in supabase_records:
+        if record["id"] not in existing_ids:
+            all_records.append(record)
+    
+    print(f"Total records returned: {len(all_records)}")
+    return all_records
 
 @router.get("/vibrations/machine/{machine_id}")
 async def get_vibration_records_by_machine(machine_id: str):
@@ -200,3 +242,64 @@ async def delete_vibration_record(record_id: str):
     
     del vibration_records_db[record_id]
     return {"message": "Vibration record deleted successfully"}
+
+@router.get("/debug/storage")
+async def debug_storage():
+    """Debug endpoint to see what's in each storage system"""
+    from ...services.supabase_service import SupabaseService
+    
+    supabase_service = SupabaseService()
+    local_records = getattr(supabase_service, '_local_records', {})
+    local_diagnoses = getattr(supabase_service, '_local_diagnoses', {})
+    local_fault_detections = getattr(supabase_service, '_local_fault_detections', {})
+    
+    return {
+        "in_memory_db": {
+            "vibration_records": len(vibration_records_db),
+            "records": list(vibration_records_db.keys())
+        },
+        "supabase_local": {
+            "vibration_records": len(local_records),
+            "diagnoses": len(local_diagnoses),
+            "fault_detections": len(local_fault_detections),
+            "record_ids": list(local_records.keys())
+        },
+        "sample_records": {
+            "in_memory": list(vibration_records_db.values())[:2],
+            "supabase_local": list(local_records.values())[:2]
+        }
+    }
+
+@router.post("/debug/sync-storage")
+async def sync_storage():
+    """Sync records from Supabase local storage to in-memory database"""
+    from ...services.supabase_service import SupabaseService
+    
+    supabase_service = SupabaseService()
+    local_records = getattr(supabase_service, '_local_records', {})
+    
+    synced_count = 0
+    
+    for record_id, record in local_records.items():
+        if record_id not in vibration_records_db:
+            # Convert Supabase record format to in-memory format
+            converted_record = {
+                "id": record_id,
+                "machine_id": record.get("machine_id", record.get("sensor_id", "unknown")),
+                "file_url": f"/uploads/{record.get('file_path', '').split('/')[-1]}" if record.get('file_path') else "",
+                "file_name": record.get("file_name", "Unknown"),
+                "sensor_position": record.get("sensor_position", "Drive End"),
+                "axis": record.get("axis", "Horizontal"),
+                "sampling_rate": record.get("sampling_rate", 12000),
+                "measurement_date": record.get("timestamp", record.get("created_at", "")),
+                "created_at": record.get("created_at", record.get("timestamp", "")),
+                "processed": record.get("status") == "processed"
+            }
+            
+            vibration_records_db[record_id] = converted_record
+            synced_count += 1
+    
+    return {
+        "message": f"Synced {synced_count} records from Supabase local storage to in-memory database",
+        "total_records_now": len(vibration_records_db)
+    }

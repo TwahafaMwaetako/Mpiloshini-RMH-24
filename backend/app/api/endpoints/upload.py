@@ -194,6 +194,20 @@ async def create_vibration_record(payload: VibrationRecordRequest):
             vibration_records_db[record_id] = in_memory_record
             print(f"Also stored in in-memory database: {record_id}")
             
+            # Also ensure the record has the correct machine_id mapping
+            # Update the Supabase local record to include machine_id for easier access
+            try:
+                supabase_service = SupabaseService()
+                local_records = getattr(supabase_service, '_local_records', {})
+                if record_id in local_records:
+                    local_records[record_id]["machine_id"] = payload.machine_id
+                    local_records[record_id]["sensor_position"] = payload.sensor_position
+                    local_records[record_id]["axis"] = payload.axis
+                    local_records[record_id]["sampling_rate"] = payload.sampling_rate
+                    print(f"Updated Supabase local record with machine metadata: {record_id}")
+            except Exception as e:
+                print(f"Failed to update Supabase local record: {e}")
+            
         except Exception as e:
             print(f"Failed to store in in-memory database: {e}")
         

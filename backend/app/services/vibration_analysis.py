@@ -89,6 +89,13 @@ class VibrationAnalysisService:
                 if record_id in vibration_records_db:
                     vibration_records_db[record_id]["processed"] = True
                     print(f"Marked record {record_id} as processed in in-memory database")
+                
+                # Also mark as processed in Supabase local storage
+                local_records = getattr(self._supabase, '_local_records', {})
+                if record_id in local_records:
+                    local_records[record_id]["status"] = "processed"
+                    print(f"Marked record {record_id} as processed in Supabase local storage")
+                    
             except Exception as e:
                 print(f"Failed to update in-memory database: {e}")
             

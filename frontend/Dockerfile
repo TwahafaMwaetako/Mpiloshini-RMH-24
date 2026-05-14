@@ -14,11 +14,18 @@ RUN pnpm install --frozen-lockfile
 # Copy source code
 COPY . .
 
+# Set API URL config locally, fallback to NGINX Proxy inside Docker compose
+ARG VITE_API_URL=/api
+ENV VITE_API_URL=$VITE_API_URL
+
 # Build the application
 RUN pnpm run build
 
 # Production stage
 FROM nginx:alpine
+
+# Install curl for healthcheck
+RUN apk add --no-cache curl
 
 # Copy built assets from builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html
